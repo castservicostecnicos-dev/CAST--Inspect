@@ -1,0 +1,11 @@
+{
+  "name": "CAST Inspect",
+  "description": "Sistema de vistorias técnicas periódicas em condomínios com gestão multiempresa, relatórios PDF e controle de manutenção.",
+  "requestFramePermissions": [
+    "camera",
+    "geolocation"
+  ],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
