@@ -13,6 +13,8 @@ import {
   LogOut,
   AlertCircle,
   Check,
+  Download,
+  Smartphone,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { UserRole, SupervisorNotification } from '../types';
@@ -21,6 +23,7 @@ import {
   syncPendingToFirestore,
   SyncStatus,
 } from '../lib/syncEngine';
+import { usePwaInstall, PwaInstallModal } from './PwaInstallPrompt';
 
 interface NavbarProps {
   currentView: string;
@@ -52,6 +55,23 @@ export const Navbar: React.FC<NavbarProps> = ({
   const [showNotifPopover, setShowNotifPopover] = useState(false);
   const [showRoleMenu, setShowRoleMenu] = useState(false);
   const [showCompanyMenu, setShowCompanyMenu] = useState(false);
+
+  // PWA Install State & Trigger
+  const { isInstalled, isInstallable, isIOS, triggerInstall } = usePwaInstall();
+  const [showPwaModal, setShowPwaModal] = useState(false);
+
+  const handleInstallClick = async () => {
+    if (isIOS) {
+      setShowPwaModal(true);
+    } else if (isInstallable) {
+      const ok = await triggerInstall();
+      if (!ok) {
+        setShowPwaModal(true);
+      }
+    } else {
+      setShowPwaModal(true);
+    }
+  };
 
   // Subscribe to sync status & online monitor
   useEffect(() => {
@@ -332,6 +352,18 @@ export const Navbar: React.FC<NavbarProps> = ({
             </button>
           )}
 
+          {/* PWA Install Button (if not already running in standalone mode) */}
+          {!isInstalled && (
+            <button
+              onClick={handleInstallClick}
+              className="flex items-center gap-1.5 bg-gradient-to-r from-blue-600/25 to-indigo-600/25 hover:from-blue-600/40 hover:to-indigo-600/40 text-blue-300 hover:text-white border border-blue-500/30 text-xs px-2 sm:px-2.5 py-1.5 rounded-xl font-semibold transition-all shadow-xs"
+              title="Instalar CAST Inspect como aplicativo PWA no seu celular ou computador"
+            >
+              <Download className="w-3.5 h-3.5 text-blue-400" />
+              <span className="hidden md:inline">Instalar App</span>
+            </button>
+          )}
+
           {/* User Role Switcher Menu */}
           <div className="relative">
             <button
@@ -429,6 +461,21 @@ export const Navbar: React.FC<NavbarProps> = ({
                   </>
                 )}
 
+                {!isInstalled && (
+                  <div className="border-t border-slate-100 pt-1 px-2">
+                    <button
+                      onClick={() => {
+                        setShowRoleMenu(false);
+                        handleInstallClick();
+                      }}
+                      className="w-full text-left px-3 py-2 text-xs text-blue-600 hover:bg-blue-50 rounded-lg flex items-center gap-2 transition-colors font-semibold"
+                    >
+                      <Download className="w-3.5 h-3.5 text-blue-600" />
+                      <span>Instalar Aplicativo (PWA)</span>
+                    </button>
+                  </div>
+                )}
+
                 <div className="border-t border-slate-100 mt-1 pt-1 px-2">
                   <button
                     onClick={() => {
@@ -446,6 +493,10 @@ export const Navbar: React.FC<NavbarProps> = ({
           </div>
         </div>
       </div>
+
+      {showPwaModal && (
+        <PwaInstallModal onClose={() => setShowPwaModal(false)} isIOS={isIOS} />
+      )}
     </header>
   );
 };

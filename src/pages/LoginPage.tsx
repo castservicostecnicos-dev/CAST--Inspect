@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import { ClipboardCheck, Lock, Mail, ArrowRight, AlertCircle } from 'lucide-react';
+import { ClipboardCheck, Lock, Mail, ArrowRight, AlertCircle, Download } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import { usePwaInstall, PwaInstallModal } from '../components/PwaInstallPrompt';
 
 export const LoginPage: React.FC = () => {
   const { login } = useAuth();
@@ -8,6 +9,22 @@ export const LoginPage: React.FC = () => {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+
+  const { isInstalled, isInstallable, isIOS, triggerInstall } = usePwaInstall();
+  const [showPwaModal, setShowPwaModal] = useState(false);
+
+  const handleInstallClick = async () => {
+    if (isIOS) {
+      setShowPwaModal(true);
+    } else if (isInstallable) {
+      const ok = await triggerInstall();
+      if (!ok) {
+        setShowPwaModal(true);
+      }
+    } else {
+      setShowPwaModal(true);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -103,6 +120,24 @@ export const LoginPage: React.FC = () => {
             </button>
           </form>
         </div>
+
+        {/* PWA Install Button on Login Screen */}
+        {!isInstalled && (
+          <div className="mt-4 text-center">
+            <button
+              type="button"
+              onClick={handleInstallClick}
+              className="inline-flex items-center gap-2 text-xs font-semibold text-slate-300 hover:text-white py-2 px-3.5 rounded-xl bg-slate-900/80 border border-slate-800 hover:border-slate-700 transition-all shadow-md"
+            >
+              <Download className="w-3.5 h-3.5 text-blue-400" />
+              <span>Instalar Aplicativo no Dispositivo (PWA)</span>
+            </button>
+          </div>
+        )}
+
+        {showPwaModal && (
+          <PwaInstallModal onClose={() => setShowPwaModal(false)} isIOS={isIOS} />
+        )}
       </div>
     </div>
   );

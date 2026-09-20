@@ -1,696 +1,654 @@
 {
   "companies": [
     {
-      "active": true,
-      "_persistedAt": "2026-09-18T10:32:23.310Z",
-      "phone": "(21) 2234-5678",
-      "createdAt": "2025-02-15T10:00:00.000Z",
-      "state": "RJ",
-      "city": "Rio de Janeiro",
-      "id": "emp_alpha_02",
-      "name": "Alpha Engenharia e Perícias Técnicas",
-      "tradeName": "Alpha Vistorias",
-      "cnpj": "18.234.901/0001-90",
-      "email": "contato@alphavistorias.com.br",
-      "address": "Av. Rio Branco, 240, 10º Andar"
-    },
-    {
-      "email": "contato@castinspect.com.br",
-      "_persistedAt": "2026-09-18T10:32:37.623Z",
+      "id": "emp_cast_01",
       "cnpj": "34.892.110/0001-45",
-      "active": true,
-      "name": "CAST Inspeções & Engenharia Diagnóstica",
-      "createdAt": "2025-01-10T08:00:00.000Z",
-      "city": "São Paulo",
-      "state": "SP",
-      "address": "Av. Paulista, 1500, Sala 1402",
       "phone": "(11) 3456-7890",
+      "city": "São Paulo",
+      "_persistedAt": "2026-09-18T10:32:37.623Z",
+      "email": "contato@castinspect.com.br",
+      "createdAt": "2025-01-10T08:00:00.000Z",
       "tradeName": "CAST Inspect",
-      "id": "emp_cast_01"
-    },
-    {
-      "name": "Empresa Teste Automação Ltda",
-      "tradeName": "Teste Auto Atualizado",
-      "cnpj": "99.888.777/0001-66",
-      "email": "teste@automacao.com.br",
-      "phone": "(11) 9999-8888",
-      "address": "Rua de Teste, 100",
-      "city": "Campinas",
+      "name": "CAST Inspeções & Engenharia Diagnóstica",
       "state": "SP",
       "active": true,
-      "id": "emp_1789817143879",
-      "createdAt": "2026-09-19T11:25:43.879Z"
-    },
-    {
-      "name": "Engenharia Pericial Brasil S/A",
-      "tradeName": "Pericial Brasil",
-      "cnpj": "77.888.999/0001-11",
-      "email": "contato@pericialbrasil.com.br",
-      "phone": "(11) 3333-4444",
-      "address": "Rua Bela Cintra, 2000",
-      "city": "São Paulo",
-      "state": "SP",
-      "active": false,
-      "id": "emp_1789817187668",
-      "createdAt": "2026-09-19T11:26:27.668Z"
-    },
-    {
-      "name": "Engenharia Pericial Brasil S/A",
-      "tradeName": "Pericial Brasil",
-      "cnpj": "77.888.999/0001-11",
-      "email": "contato@pericialbrasil.com.br",
-      "phone": "(11) 3333-4444",
-      "address": "Rua Bela Cintra, 2000",
-      "city": "São Paulo",
-      "state": "SP",
-      "active": false,
-      "id": "emp_1789817194692",
-      "createdAt": "2026-09-19T11:26:34.692Z"
+      "address": "Av. Paulista, 1500, Sala 1402"
     }
   ],
   "users": [
     {
-      "phone": "(11) 98765-4321",
-      "docRegistration": "CREA-SP 5069213456",
       "companyId": "emp_cast_01",
-      "companyName": "CAST Inspect",
-      "name": "Carlos Alessandro",
-      "password": "123",
-      "id": "usr_adm_01",
-      "role": "GERENTE",
       "active": true,
+      "createdAt": "2026-09-19T11:25:43.896Z",
+      "email": "tecnico.teste.1789817143893@cast.com.br",
+      "docRegistration": "CFT-SP 999999",
+      "id": "usr_1789817143896",
+      "phone": "(11) 91111-2222",
+      "password": "123",
+      "role": "TECNICO",
+      "name": "Técnico Teste Robot"
+    },
+    {
+      "phone": "(11) 94444-5555",
+      "password": "123",
+      "companyId": "emp_cast_01",
+      "active": true,
+      "createdAt": "2026-09-19T11:26:27.690Z",
+      "email": "gabriel.teste.1789817187687@cast.com.br",
+      "docRegistration": "CREA-SP 5098765432",
+      "role": "TECNICO",
+      "name": "Eng. Gabriel Monteiro",
+      "id": "usr_1789817187690"
+    },
+    {
+      "active": true,
+      "role": "TECNICO",
+      "name": "Eng. Gabriel Monteiro",
+      "email": "gabriel.teste.1789817194711@cast.com.br",
+      "createdAt": "2026-09-19T11:26:34.714Z",
+      "docRegistration": "CREA-SP 5098765432",
+      "companyId": "emp_cast_01",
+      "id": "usr_1789817194714",
+      "phone": "(11) 94444-5555",
+      "password": "123"
+    },
+    {
+      "companyId": "emp_cast_01",
+      "role": "ADM_PREDIAL",
+      "name": "Roberto Andrade (Síndico)",
       "createdAt": "2025-01-10T08:00:00.000Z",
-      "email": "cast.servicostecnicos@gmail.com"
+      "companyName": "CAST Inspect",
+      "email": "adm@cast.com.br",
+      "id": "usr_adm_01",
+      "active": true,
+      "password": "123",
+      "docRegistration": "CREA-SP 5069213456",
+      "phone": "(11) 98765-4321"
     },
     {
       "companyName": "Alpha Engenharia e Perícias Técnicas",
-      "name": "Eng. Rodrigo Alencar",
       "id": "usr_alpha_01",
-      "_persistedAt": "2026-09-18T10:32:23.617Z",
-      "createdAt": "2025-02-15T10:00:00.000Z",
-      "active": true,
+      "companyId": "emp_alpha_02",
+      "name": "Eng. Rodrigo Alencar",
       "role": "GERENTE",
-      "email": "gerente@alpha.com.br",
+      "createdAt": "2025-02-15T10:00:00.000Z",
       "phone": "(21) 99876-5432",
-      "docRegistration": "CREA-RJ 2019481230",
-      "companyId": "emp_alpha_02"
+      "active": true,
+      "email": "gerente@alpha.com.br",
+      "_persistedAt": "2026-09-18T10:32:23.617Z",
+      "docRegistration": "CREA-RJ 2019481230"
     },
     {
-      "role": "DEV",
-      "companyName": "CAST Inspect (Sistema)",
-      "_persistedAt": "2026-09-18T10:32:23.820Z",
       "createdAt": "2025-01-01T00:00:00.000Z",
-      "active": true,
+      "companyId": "emp_cast_01",
+      "role": "DEV",
       "name": "Equipe de Desenvolvimento",
+      "companyName": "CAST Inspect (Sistema)",
       "email": "dev@castinspect.com.br",
-      "password": "dev",
+      "active": true,
       "id": "usr_dev_01",
-      "companyId": "emp_cast_01"
+      "_persistedAt": "2026-09-18T10:32:23.820Z",
+      "password": "dev"
     },
     {
-      "active": true,
-      "role": "DEV",
-      "id": "usr_dev_ale",
-      "createdAt": "2025-01-01T00:00:00.000Z",
-      "name": "Dev Alexandre",
-      "password": "Cast2468",
+      "companyName": "CAST Inspect (Sistema)",
+      "password": "Cast@2468",
       "email": "ale11062@gmail.com",
       "companyId": "emp_cast_01",
-      "companyName": "CAST Inspect (Sistema)"
+      "active": true,
+      "name": "Dev Alexandre",
+      "role": "DEV",
+      "createdAt": "2025-01-01T00:00:00.000Z",
+      "id": "usr_dev_ale"
     },
     {
-      "email": "gerente@cast.com.br",
-      "companyId": "emp_cast_01",
-      "id": "usr_gerente_01",
+      "id": "usr_dev_cast",
       "active": true,
+      "email": "cast.servicostecnicos@gmail.com",
+      "companyName": "CAST Inspect (Sistema)",
+      "password": "Cast@2468",
+      "companyId": "emp_cast_01",
+      "name": "Dev Carlos (CAST)",
+      "role": "DEV",
+      "createdAt": "2025-01-01T00:00:00.000Z"
+    },
+    {
+      "role": "GERENTE",
+      "name": "Eng. Carlos Eduardo Castilho",
       "companyName": "CAST Inspeções & Engenharia Diagnóstica",
       "_persistedAt": "2026-09-18T10:32:23.924Z",
-      "createdAt": "2025-01-10T08:00:00.000Z",
-      "name": "Eng. Carlos Eduardo Castilho",
-      "docRegistration": "CREA-SP 5069213890/D",
+      "active": true,
+      "id": "usr_gerente_01",
       "phone": "(11) 98765-4321",
-      "role": "GERENTE"
+      "companyId": "emp_cast_01",
+      "createdAt": "2025-01-10T08:00:00.000Z",
+      "email": "gerente@cast.com.br",
+      "docRegistration": "CREA-SP 5069213890/D"
     },
     {
-      "role": "SUPERVISOR",
-      "_persistedAt": "2026-09-18T10:32:24.005Z",
-      "email": "supervisor@cast.com.br",
-      "companyId": "emp_cast_01",
-      "companyName": "CAST Inspeções & Engenharia Diagnóstica",
       "id": "usr_supervisor_01",
       "name": "Engª. Mariana Souza Ramos",
-      "phone": "(11) 97654-3210",
-      "docRegistration": "CREA-SP 5078129910/D",
+      "role": "SUPERVISOR",
       "active": true,
-      "createdAt": "2025-01-12T09:00:00.000Z"
-    },
-    {
-      "docRegistration": "CFT-SP 209381920",
-      "role": "TECNICO",
-      "companyId": "emp_cast_01",
-      "active": true,
-      "email": "tecnico@cast.com.br",
-      "name": "Téc. Lucas Silva Ferreira",
-      "createdAt": "2025-01-15T10:00:00.000Z",
-      "phone": "(11) 96543-2109",
-      "id": "usr_tecnico_01",
       "companyName": "CAST Inspeções & Engenharia Diagnóstica",
-      "_persistedAt": "2026-09-18T10:32:24.058Z"
+      "phone": "(11) 97654-3210",
+      "companyId": "emp_cast_01",
+      "_persistedAt": "2026-09-18T10:32:24.005Z",
+      "createdAt": "2025-01-12T09:00:00.000Z",
+      "docRegistration": "CREA-SP 5078129910/D",
+      "email": "supervisor@cast.com.br"
     },
     {
+      "id": "usr_tecnico_01",
+      "createdAt": "2025-01-15T10:00:00.000Z",
+      "email": "tecnico@cast.com.br",
       "companyId": "emp_cast_01",
-      "name": "Técnico Teste Robot",
-      "email": "tecnico.teste.1789817143893@cast.com.br",
-      "role": "TECNICO",
-      "docRegistration": "CFT-SP 999999",
-      "phone": "(11) 91111-2222",
-      "password": "123",
+      "companyName": "CAST Inspeções & Engenharia Diagnóstica",
+      "docRegistration": "CFT-SP 209381920",
+      "phone": "(11) 96543-2109",
       "active": true,
-      "id": "usr_1789817143896",
-      "createdAt": "2026-09-19T11:25:43.896Z"
-    },
-    {
-      "companyId": "emp_cast_01",
-      "name": "Eng. Gabriel Monteiro",
-      "email": "gabriel.teste.1789817187687@cast.com.br",
+      "_persistedAt": "2026-09-18T10:32:24.058Z",
       "role": "TECNICO",
-      "docRegistration": "CREA-SP 5098765432",
-      "phone": "(11) 94444-5555",
-      "password": "123",
-      "active": true,
-      "id": "usr_1789817187690",
-      "createdAt": "2026-09-19T11:26:27.690Z"
-    },
-    {
-      "companyId": "emp_cast_01",
-      "name": "Eng. Gabriel Monteiro",
-      "email": "gabriel.teste.1789817194711@cast.com.br",
-      "role": "TECNICO",
-      "docRegistration": "CREA-SP 5098765432",
-      "phone": "(11) 94444-5555",
-      "password": "123",
-      "active": true,
-      "id": "usr_1789817194714",
-      "createdAt": "2026-09-19T11:26:34.714Z"
+      "name": "Téc. Lucas Silva Ferreira"
     }
   ],
   "condominiums": [
     {
-      "companyId": "emp_alpha_02",
-      "name": "Condomínio Residencial Jardins Teste",
-      "cnpj": "12.345.678/0001-99",
-      "address": "Alameda dos Jardins, 500",
       "neighborhood": "Jardins",
-      "city": "São Paulo",
-      "state": "SP",
-      "syndicName": "Síndico Roberto Teste",
-      "syndicEmail": "sindico@jardins.com",
+      "companyId": "emp_alpha_02",
       "syndicPhone": "(11) 98888-7777",
       "active": true,
+      "city": "São Paulo",
+      "createdAt": "2026-09-19T11:25:43.904Z",
+      "cnpj": "12.345.678/0001-99",
+      "syndicName": "Síndico Roberto Teste",
+      "id": "cond_1789817143904",
+      "address": "Alameda dos Jardins, 500",
+      "state": "SP",
       "blocks": [
         {
-          "id": "blk_a_1789817143901",
-          "name": "Torre A - Acácia",
           "floorsCount": 18,
-          "description": "Torre Residencial"
+          "id": "blk_a_1789817143901",
+          "description": "Torre Residencial",
+          "name": "Torre A - Acácia"
         },
         {
-          "id": "blk_b_1789817143901",
-          "name": "Torre B - Bromélia",
           "floorsCount": 18,
+          "name": "Torre B - Bromélia",
+          "id": "blk_b_1789817143901",
           "description": "Torre Residencial"
         }
       ],
-      "id": "cond_1789817143904",
-      "createdAt": "2026-09-19T11:25:43.904Z"
+      "syndicEmail": "sindico@jardins.com",
+      "name": "Condomínio Residencial Jardins Teste"
     },
     {
-      "companyId": "emp_cast_01",
-      "name": "Condomínio Grand Palais",
-      "cnpj": "45.678.901/0001-23",
-      "address": "Rua Oscar Freire, 1200",
-      "neighborhood": "Cerqueira César",
-      "city": "São Paulo",
-      "state": "SP",
       "syndicName": "Dr. Fernando Albuquerque",
-      "syndicEmail": "fernando@grandpalais.com.br",
-      "syndicPhone": "(11) 97777-6666",
-      "active": true,
+      "createdAt": "2026-09-19T11:26:27.694Z",
+      "name": "Condomínio Grand Palais",
       "blocks": [
         {
           "id": "blk_royal_1789817187691",
           "name": "Bloco Royal",
-          "floorsCount": 22,
-          "description": "Torre Residencial Principal"
+          "description": "Torre Residencial Principal",
+          "floorsCount": 22
         },
         {
-          "id": "blk_imperial_1789817187691",
-          "name": "Bloco Imperial",
           "floorsCount": 22,
+          "name": "Bloco Imperial",
+          "id": "blk_imperial_1789817187691",
           "description": "Torre Residencial Secundária"
         }
       ],
-      "id": "cond_1789817187694",
-      "createdAt": "2026-09-19T11:26:27.694Z"
-    },
-    {
-      "companyId": "emp_cast_01",
-      "name": "Condomínio Grand Palais",
-      "cnpj": "45.678.901/0001-23",
-      "address": "Rua Oscar Freire, 1200",
       "neighborhood": "Cerqueira César",
       "city": "São Paulo",
-      "state": "SP",
-      "syndicName": "Dr. Fernando Albuquerque",
+      "cnpj": "45.678.901/0001-23",
+      "id": "cond_1789817187694",
       "syndicEmail": "fernando@grandpalais.com.br",
-      "syndicPhone": "(11) 97777-6666",
+      "companyId": "emp_cast_01",
       "active": true,
+      "syndicPhone": "(11) 97777-6666",
+      "address": "Rua Oscar Freire, 1200",
+      "state": "SP"
+    },
+    {
       "blocks": [
         {
-          "id": "blk_royal_1789817194715",
-          "name": "Bloco Royal",
           "floorsCount": 22,
-          "description": "Torre Residencial Principal"
+          "id": "blk_royal_1789817194715",
+          "description": "Torre Residencial Principal",
+          "name": "Bloco Royal"
         },
         {
+          "floorsCount": 22,
           "id": "blk_imperial_1789817194715",
           "name": "Bloco Imperial",
-          "floorsCount": 22,
           "description": "Torre Residencial Secundária"
         }
       ],
+      "name": "Condomínio Grand Palais",
+      "createdAt": "2026-09-19T11:26:34.718Z",
+      "syndicName": "Dr. Fernando Albuquerque",
       "id": "cond_1789817194718",
-      "createdAt": "2026-09-19T11:26:34.718Z"
+      "city": "São Paulo",
+      "cnpj": "45.678.901/0001-23",
+      "neighborhood": "Cerqueira César",
+      "syndicPhone": "(11) 97777-6666",
+      "companyId": "emp_cast_01",
+      "syndicEmail": "fernando@grandpalais.com.br",
+      "address": "Rua Oscar Freire, 1200",
+      "state": "SP",
+      "active": true
     }
   ],
   "templates": [
     {
-      "companyId": "emp_alpha_02",
       "title": "Checklist Predial Padrão Teste",
-      "description": "Modelo de teste automatizado para verificação de integridade",
+      "companyId": "emp_alpha_02",
       "active": true,
+      "createdAt": "2026-09-19T11:25:43.912Z",
       "environments": [
         {
           "id": "env_1_1789817143908",
           "name": "Casa de Bombas e Barrilete",
-          "order": 1,
           "items": [
             {
-              "id": "itm_1_1789817143908",
               "name": "Pressostatos e Manômetros",
+              "id": "itm_1_1789817143908",
               "description": "Verificar pressão e calibração",
               "order": 1
             },
             {
-              "id": "itm_2_1789817143908",
-              "name": "Vazamentos nas Válvulas de Retenção",
               "description": "Inspeção visual e estanqueidade",
-              "order": 2
+              "order": 2,
+              "name": "Vazamentos nas Válvulas de Retenção",
+              "id": "itm_2_1789817143908"
             }
-          ]
+          ],
+          "order": 1
         },
         {
           "id": "env_2_1789817143908",
           "name": "Cobertura e Telhado",
-          "order": 2,
           "items": [
             {
               "id": "itm_3_1789817143908",
-              "name": "Sistema SPDA (Para-raios)",
               "description": "Continuidade e aterramento",
-              "order": 1
+              "order": 1,
+              "name": "Sistema SPDA (Para-raios)"
             }
-          ]
+          ],
+          "order": 2
         }
       ],
-      "id": "tmpl_1789817143912",
-      "createdAt": "2026-09-19T11:25:43.912Z"
+      "description": "Modelo de teste automatizado para verificação de integridade",
+      "id": "tmpl_1789817143912"
     },
     {
-      "companyId": "emp_cast_01",
-      "title": "Vistoria Estrutural e Hidráulica NBR 16747",
       "description": "Modelo detalhado de inspeção predial segundo normas ABNT",
-      "active": true,
+      "id": "tmpl_1789817187701",
+      "title": "Vistoria Estrutural e Hidráulica NBR 16747",
       "environments": [
         {
-          "id": "env_barrilete_1789817187698",
-          "name": "Barrilete e Reservatório Superior",
-          "order": 1,
           "items": [
             {
-              "id": "itm_boia_1789817187698",
               "name": "Válvula Boia e Ladrão",
-              "description": "Funcionamento e extravasor",
-              "order": 1
+              "order": 1,
+              "id": "itm_boia_1789817187698",
+              "description": "Funcionamento e extravasor"
             },
             {
-              "id": "itm_impermeab_1789817187698",
-              "name": "Impermeabilização do Reservatório",
               "description": "Trincas e estanqueidade",
-              "order": 2
+              "name": "Impermeabilização do Reservatório",
+              "order": 2,
+              "id": "itm_impermeab_1789817187698"
             }
-          ]
+          ],
+          "name": "Barrilete e Reservatório Superior",
+          "order": 1,
+          "id": "env_barrilete_1789817187698"
         },
         {
-          "id": "env_quadros_1789817187698",
-          "name": "Subestação e Quadro Geral (QGBT)",
           "order": 2,
+          "name": "Subestação e Quadro Geral (QGBT)",
+          "id": "env_quadros_1789817187698",
           "items": [
             {
               "id": "itm_termografia_1789817187698",
-              "name": "Termografia e Aquecimento dos Barramentos",
               "description": "Temperatura de operação",
+              "name": "Termografia e Aquecimento dos Barramentos",
               "order": 1
             }
           ]
         }
       ],
-      "id": "tmpl_1789817187701",
-      "createdAt": "2026-09-19T11:26:27.701Z"
+      "createdAt": "2026-09-19T11:26:27.701Z",
+      "active": true,
+      "companyId": "emp_cast_01"
     },
     {
-      "companyId": "emp_cast_01",
       "title": "Vistoria Estrutural e Hidráulica NBR 16747",
-      "description": "Modelo detalhado de inspeção predial segundo normas ABNT",
-      "active": true,
+      "companyId": "emp_cast_01",
       "environments": [
         {
           "id": "env_barrilete_1789817194723",
           "name": "Barrilete e Reservatório Superior",
-          "order": 1,
           "items": [
             {
-              "id": "itm_boia_1789817194723",
               "name": "Válvula Boia e Ladrão",
-              "description": "Funcionamento e extravasor",
-              "order": 1
+              "id": "itm_boia_1789817194723",
+              "order": 1,
+              "description": "Funcionamento e extravasor"
             },
             {
-              "id": "itm_impermeab_1789817194723",
-              "name": "Impermeabilização do Reservatório",
               "description": "Trincas e estanqueidade",
+              "name": "Impermeabilização do Reservatório",
+              "id": "itm_impermeab_1789817194723",
               "order": 2
             }
-          ]
+          ],
+          "order": 1
         },
         {
-          "id": "env_quadros_1789817194723",
-          "name": "Subestação e Quadro Geral (QGBT)",
           "order": 2,
           "items": [
             {
               "id": "itm_termografia_1789817194723",
               "name": "Termografia e Aquecimento dos Barramentos",
-              "description": "Temperatura de operação",
-              "order": 1
+              "order": 1,
+              "description": "Temperatura de operação"
             }
-          ]
+          ],
+          "id": "env_quadros_1789817194723",
+          "name": "Subestação e Quadro Geral (QGBT)"
         }
       ],
-      "id": "tmpl_1789817194725",
-      "createdAt": "2026-09-19T11:26:34.725Z"
+      "createdAt": "2026-09-19T11:26:34.725Z",
+      "active": true,
+      "description": "Modelo detalhado de inspeção predial segundo normas ABNT",
+      "id": "tmpl_1789817194725"
     }
   ],
   "inspections": [
     {
-      "id": "VIS-SYNC-1789817194757",
-      "companyId": "emp_cast_01",
-      "companyName": "CAST Inspect",
-      "condominiumId": "cond_1789817194718",
-      "condominiumName": "Condomínio Grand Palais",
-      "blockId": "blk_royal_1789817194715",
-      "blockName": "Bloco Royal",
-      "templateId": "tmpl_1789817194725",
-      "templateName": "Vistoria Estrutural e Hidráulica NBR 16747",
-      "inspectorId": "usr_tecnico_01",
-      "inspectorName": "Lucas Silva Ferreira",
-      "inspectorRole": "TECNICO",
-      "date": "2026-09-19",
-      "status": "CONCLUIDA",
-      "environments": [],
-      "syncedAt": "2026-09-19T11:26:34.757Z",
-      "syncStatus": "synced",
-      "criticalItemsCount": 0
-    },
-    {
-      "id": "VIS-2026-4727",
-      "companyId": "emp_cast_01",
-      "companyName": "CAST Inspect",
-      "condominiumId": "cond_1789817194718",
-      "condominiumName": "Condomínio Grand Palais",
-      "blockId": "blk_royal_1789817194715",
-      "blockName": "Bloco Royal",
-      "templateId": "tmpl_1789817194725",
-      "templateName": "Vistoria Estrutural e Hidráulica NBR 16747",
-      "inspectorId": "usr_tecnico_01",
-      "inspectorName": "Lucas Silva Ferreira",
-      "inspectorRole": "TECNICO",
-      "inspectorDoc": "CFT-SP 209381920",
-      "date": "2026-09-19",
-      "startedAt": "2026-09-19T11:26:34.727Z",
-      "status": "CONCLUIDA",
-      "geolocation": {
-        "latitude": -23.565882,
-        "longitude": -46.667231,
-        "address": "Rua Oscar Freire, 1200, São Paulo - SP",
-        "timestamp": "2026-09-19T11:26:34.727Z"
-      },
-      "environments": [
-        {
-          "id": "env_eval_exec_1",
-          "name": "Barrilete e Reservatório Superior",
-          "order": 1,
-          "items": [
-            {
-              "id": "itm_boia_exec",
-              "name": "Válvula Boia e Ladrão",
-              "order": 1,
-              "status": "OK, MANUTENÇÃO EM DIA",
-              "observations": "Válvula operando normalmente com vedação completa.",
-              "photos": [
-                {
-                  "id": "photo_1",
-                  "url": "data:image/svg+xml;utf8,<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"300\" height=\"400\"><rect width=\"300\" height=\"400\" fill=\"%232563eb\"/><text x=\"20\" y=\"50\" fill=\"white\" font-size=\"20\">Valvula Boia OK</text></svg>",
-                  "caption": "Registro da válvula boia em repouso estanque",
-                  "takenAt": "2026-09-19T11:26:34.727Z",
-                  "isVertical": true
-                }
-              ]
-            },
-            {
-              "id": "itm_impermeab_exec",
-              "name": "Impermeabilização do Reservatório",
-              "order": 2,
-              "status": "AGENDAR MANUTENÇÃO",
-              "observations": "Sinais de infiltração inicial na face externa do reservatório superior.",
-              "photos": [
-                {
-                  "id": "photo_2",
-                  "url": "data:image/svg+xml;utf8,<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"300\" height=\"400\"><rect width=\"300\" height=\"400\" fill=\"%23ef4444\"/><text x=\"20\" y=\"50\" fill=\"white\" font-size=\"20\">Item Critico</text></svg>",
-                  "caption": "Foto da umidade na parede externa",
-                  "takenAt": "2026-09-19T11:26:34.727Z",
-                  "isVertical": true
-                }
-              ]
-            }
-          ]
-        }
-      ],
-      "generalNotes": "Inspeção realizada de acordo com o plano de manutenção preventiva anual.",
-      "criticalItemsCount": 1,
-      "completedAt": "2026-09-19T11:26:34.744Z",
-      "technicianSignature": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==",
       "technicianName": "Lucas Silva Ferreira",
-      "syndicSignature": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==",
-      "syndicName": "Dr. Fernando Albuquerque",
-      "supervisorNotified": true,
-      "supervisorNotifiedAt": "2026-09-19T11:26:34.746Z"
-    },
-    {
-      "id": "VIS-SYNC-1789817187751",
-      "companyId": "emp_cast_01",
-      "companyName": "CAST Inspect",
-      "condominiumId": "cond_1789817187694",
-      "condominiumName": "Condomínio Grand Palais",
-      "blockId": "blk_royal_1789817187691",
-      "blockName": "Bloco Royal",
-      "templateId": "tmpl_1789817187701",
-      "templateName": "Vistoria Estrutural e Hidráulica NBR 16747",
-      "inspectorId": "usr_tecnico_01",
-      "inspectorName": "Lucas Silva Ferreira",
-      "inspectorRole": "TECNICO",
-      "date": "2026-09-19",
-      "status": "CONCLUIDA",
-      "environments": [],
-      "syncedAt": "2026-09-19T11:26:27.751Z",
-      "syncStatus": "synced",
-      "criticalItemsCount": 0
-    },
-    {
-      "id": "VIS-2026-7704",
-      "companyId": "emp_cast_01",
-      "companyName": "CAST Inspect",
-      "condominiumId": "cond_1789817187694",
-      "condominiumName": "Condomínio Grand Palais",
-      "blockId": "blk_royal_1789817187691",
-      "blockName": "Bloco Royal",
-      "templateId": "tmpl_1789817187701",
-      "templateName": "Vistoria Estrutural e Hidráulica NBR 16747",
-      "inspectorId": "usr_tecnico_01",
-      "inspectorName": "Lucas Silva Ferreira",
-      "inspectorRole": "TECNICO",
-      "inspectorDoc": "CFT-SP 209381920",
-      "date": "2026-09-19",
-      "startedAt": "2026-09-19T11:26:27.704Z",
-      "status": "CONCLUIDA",
-      "geolocation": {
-        "latitude": -23.565882,
-        "longitude": -46.667231,
-        "address": "Rua Oscar Freire, 1200, São Paulo - SP",
-        "timestamp": "2026-09-19T11:26:27.704Z"
-      },
-      "environments": [
-        {
-          "id": "env_eval_exec_1",
-          "name": "Barrilete e Reservatório Superior",
-          "order": 1,
-          "items": [
-            {
-              "id": "itm_boia_exec",
-              "name": "Válvula Boia e Ladrão",
-              "order": 1,
-              "status": "OK, MANUTENÇÃO EM DIA",
-              "observations": "Válvula operando normalmente com vedação completa.",
-              "photos": [
-                {
-                  "id": "photo_1",
-                  "url": "data:image/svg+xml;utf8,<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"300\" height=\"400\"><rect width=\"300\" height=\"400\" fill=\"%232563eb\"/><text x=\"20\" y=\"50\" fill=\"white\" font-size=\"20\">Valvula Boia OK</text></svg>",
-                  "caption": "Registro da válvula boia em repouso estanque",
-                  "takenAt": "2026-09-19T11:26:27.704Z",
-                  "isVertical": true
-                }
-              ]
-            },
-            {
-              "id": "itm_impermeab_exec",
-              "name": "Impermeabilização do Reservatório",
-              "order": 2,
-              "status": "AGENDAR MANUTENÇÃO",
-              "observations": "Sinais de infiltração inicial na face externa do reservatório superior.",
-              "photos": [
-                {
-                  "id": "photo_2",
-                  "url": "data:image/svg+xml;utf8,<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"300\" height=\"400\"><rect width=\"300\" height=\"400\" fill=\"%23ef4444\"/><text x=\"20\" y=\"50\" fill=\"white\" font-size=\"20\">Item Critico</text></svg>",
-                  "caption": "Foto da umidade na parede externa",
-                  "takenAt": "2026-09-19T11:26:27.704Z",
-                  "isVertical": true
-                }
-              ]
-            }
-          ]
-        }
-      ],
-      "generalNotes": "Inspeção realizada de acordo com o plano de manutenção preventiva anual.",
-      "criticalItemsCount": 1,
-      "completedAt": "2026-09-19T11:26:27.708Z",
-      "technicianSignature": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==",
-      "technicianName": "Lucas Silva Ferreira",
-      "syndicSignature": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==",
-      "syndicName": "Dr. Fernando Albuquerque",
-      "supervisorNotified": true,
-      "supervisorNotifiedAt": "2026-09-19T11:26:27.710Z"
-    },
-    {
-      "id": "VIS-2026-3914",
+      "supervisorNotifiedAt": "2026-09-19T11:25:43.918Z",
       "companyId": "emp_alpha_02",
+      "syndicSignature": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==",
+      "date": "2026-09-19",
+      "blockId": "blk_a_1789817143901",
       "companyName": "CAST Inspect",
       "condominiumId": "cond_1789817143904",
-      "condominiumName": "Condomínio Residencial Jardins Teste",
-      "blockId": "blk_a_1789817143901",
-      "blockName": "Torre A - Acácia",
-      "templateId": "tmpl_1789817143912",
-      "templateName": "Checklist Predial Padrão Teste",
-      "inspectorId": "usr_tecnico_01",
-      "inspectorName": "Lucas Silva Ferreira",
-      "inspectorRole": "TECNICO",
       "inspectorDoc": "CFT-SP 209381920",
-      "date": "2026-09-19",
+      "templateName": "Checklist Predial Padrão Teste",
+      "technicianSignature": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==",
+      "blockName": "Torre A - Acácia",
       "startedAt": "2026-09-19T11:25:43.914Z",
-      "status": "CONCLUIDA",
+      "supervisorNotified": true,
+      "id": "VIS-2026-3914",
+      "condominiumName": "Condomínio Residencial Jardins Teste",
+      "templateId": "tmpl_1789817143912",
+      "inspectorRole": "TECNICO",
       "geolocation": {
+        "address": "Av. Paulista, São Paulo - SP",
         "latitude": -23.561684,
         "longitude": -46.655981,
-        "address": "Av. Paulista, São Paulo - SP",
         "timestamp": "2026-09-19T11:25:43.914Z"
       },
+      "inspectorId": "usr_tecnico_01",
+      "syndicName": "Roberto Teste",
       "environments": [
         {
-          "id": "env_eval_1",
-          "name": "Casa de Bombas e Barrilete",
-          "order": 1,
           "items": [
             {
-              "id": "itm_eval_1",
-              "name": "Pressostatos e Manômetros",
-              "order": 1,
-              "status": "OK, MANUTENÇÃO EM DIA",
-              "observations": "Equipamento aferido, trabalhando na faixa correta de 4.2 bar.",
               "photos": [
                 {
-                  "id": "p1",
                   "url": "data:image/svg+xml;utf8,<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"100\" height=\"100\"><rect width=\"100\" height=\"100\" fill=\"%232563eb\"/></svg>",
                   "caption": "Manômetro principal verificado",
                   "takenAt": "2026-09-19T11:25:43.914Z",
-                  "isVertical": false
+                  "isVertical": false,
+                  "id": "p1"
                 }
-              ]
+              ],
+              "order": 1,
+              "observations": "Equipamento aferido, trabalhando na faixa correta de 4.2 bar.",
+              "status": "OK, MANUTENÇÃO EM DIA",
+              "name": "Pressostatos e Manômetros",
+              "id": "itm_eval_1"
             },
             {
+              "status": "AGENDAR MANUTENÇÃO",
               "id": "itm_eval_2",
               "name": "Vazamentos nas Válvulas de Retenção",
               "order": 2,
-              "status": "AGENDAR MANUTENÇÃO",
               "observations": "Gotejamento contínuo detectado na junta da flange secundária.",
               "photos": []
             }
-          ]
+          ],
+          "order": 1,
+          "id": "env_eval_1",
+          "name": "Casa de Bombas e Barrilete"
         }
       ],
+      "inspectorName": "Lucas Silva Ferreira",
       "generalNotes": "Vistoria técnica periódica realizada conforme plano preventivo.",
       "criticalItemsCount": 1,
       "completedAt": "2026-09-19T11:25:43.918Z",
-      "technicianSignature": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==",
+      "status": "CONCLUIDA"
+    },
+    {
+      "syndicName": "Dr. Fernando Albuquerque",
+      "criticalItemsCount": 1,
+      "completedAt": "2026-09-19T11:26:34.744Z",
+      "blockId": "blk_royal_1789817194715",
+      "condominiumName": "Condomínio Grand Palais",
       "technicianName": "Lucas Silva Ferreira",
-      "syndicSignature": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==",
-      "syndicName": "Roberto Teste",
+      "technicianSignature": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==",
+      "blockName": "Bloco Royal",
+      "startedAt": "2026-09-19T11:26:34.727Z",
       "supervisorNotified": true,
-      "supervisorNotifiedAt": "2026-09-19T11:25:43.918Z"
+      "geolocation": {
+        "timestamp": "2026-09-19T11:26:34.727Z",
+        "longitude": -46.667231,
+        "latitude": -23.565882,
+        "address": "Rua Oscar Freire, 1200, São Paulo - SP"
+      },
+      "inspectorId": "usr_tecnico_01",
+      "condominiumId": "cond_1789817194718",
+      "id": "VIS-2026-4727",
+      "templateId": "tmpl_1789817194725",
+      "templateName": "Vistoria Estrutural e Hidráulica NBR 16747",
+      "inspectorDoc": "CFT-SP 209381920",
+      "syndicSignature": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==",
+      "supervisorNotifiedAt": "2026-09-19T11:26:34.746Z",
+      "inspectorRole": "TECNICO",
+      "companyId": "emp_cast_01",
+      "status": "CONCLUIDA",
+      "environments": [
+        {
+          "id": "env_eval_exec_1",
+          "order": 1,
+          "items": [
+            {
+              "status": "OK, MANUTENÇÃO EM DIA",
+              "id": "itm_boia_exec",
+              "photos": [
+                {
+                  "url": "data:image/svg+xml;utf8,<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"300\" height=\"400\"><rect width=\"300\" height=\"400\" fill=\"%232563eb\"/><text x=\"20\" y=\"50\" fill=\"white\" font-size=\"20\">Valvula Boia OK</text></svg>",
+                  "id": "photo_1",
+                  "takenAt": "2026-09-19T11:26:34.727Z",
+                  "caption": "Registro da válvula boia em repouso estanque",
+                  "isVertical": true
+                }
+              ],
+              "order": 1,
+              "observations": "Válvula operando normalmente com vedação completa.",
+              "name": "Válvula Boia e Ladrão"
+            },
+            {
+              "status": "AGENDAR MANUTENÇÃO",
+              "order": 2,
+              "observations": "Sinais de infiltração inicial na face externa do reservatório superior.",
+              "name": "Impermeabilização do Reservatório",
+              "id": "itm_impermeab_exec",
+              "photos": [
+                {
+                  "isVertical": true,
+                  "id": "photo_2",
+                  "url": "data:image/svg+xml;utf8,<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"300\" height=\"400\"><rect width=\"300\" height=\"400\" fill=\"%23ef4444\"/><text x=\"20\" y=\"50\" fill=\"white\" font-size=\"20\">Item Critico</text></svg>",
+                  "takenAt": "2026-09-19T11:26:34.727Z",
+                  "caption": "Foto da umidade na parede externa"
+                }
+              ]
+            }
+          ],
+          "name": "Barrilete e Reservatório Superior"
+        }
+      ],
+      "companyName": "CAST Inspect",
+      "inspectorName": "Lucas Silva Ferreira",
+      "date": "2026-09-19",
+      "generalNotes": "Inspeção realizada de acordo com o plano de manutenção preventiva anual."
+    },
+    {
+      "generalNotes": "Inspeção realizada de acordo com o plano de manutenção preventiva anual.",
+      "blockId": "blk_royal_1789817187691",
+      "condominiumName": "Condomínio Grand Palais",
+      "id": "VIS-2026-7704",
+      "inspectorName": "Lucas Silva Ferreira",
+      "syndicName": "Dr. Fernando Albuquerque",
+      "completedAt": "2026-09-19T11:26:27.708Z",
+      "technicianName": "Lucas Silva Ferreira",
+      "environments": [
+        {
+          "name": "Barrilete e Reservatório Superior",
+          "items": [
+            {
+              "id": "itm_boia_exec",
+              "name": "Válvula Boia e Ladrão",
+              "observations": "Válvula operando normalmente com vedação completa.",
+              "status": "OK, MANUTENÇÃO EM DIA",
+              "photos": [
+                {
+                  "isVertical": true,
+                  "takenAt": "2026-09-19T11:26:27.704Z",
+                  "caption": "Registro da válvula boia em repouso estanque",
+                  "id": "photo_1",
+                  "url": "data:image/svg+xml;utf8,<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"300\" height=\"400\"><rect width=\"300\" height=\"400\" fill=\"%232563eb\"/><text x=\"20\" y=\"50\" fill=\"white\" font-size=\"20\">Valvula Boia OK</text></svg>"
+                }
+              ],
+              "order": 1
+            },
+            {
+              "status": "AGENDAR MANUTENÇÃO",
+              "order": 2,
+              "id": "itm_impermeab_exec",
+              "observations": "Sinais de infiltração inicial na face externa do reservatório superior.",
+              "name": "Impermeabilização do Reservatório",
+              "photos": [
+                {
+                  "takenAt": "2026-09-19T11:26:27.704Z",
+                  "caption": "Foto da umidade na parede externa",
+                  "url": "data:image/svg+xml;utf8,<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"300\" height=\"400\"><rect width=\"300\" height=\"400\" fill=\"%23ef4444\"/><text x=\"20\" y=\"50\" fill=\"white\" font-size=\"20\">Item Critico</text></svg>",
+                  "isVertical": true,
+                  "id": "photo_2"
+                }
+              ]
+            }
+          ],
+          "id": "env_eval_exec_1",
+          "order": 1
+        }
+      ],
+      "templateId": "tmpl_1789817187701",
+      "companyId": "emp_cast_01",
+      "geolocation": {
+        "timestamp": "2026-09-19T11:26:27.704Z",
+        "longitude": -46.667231,
+        "latitude": -23.565882,
+        "address": "Rua Oscar Freire, 1200, São Paulo - SP"
+      },
+      "inspectorId": "usr_tecnico_01",
+      "inspectorRole": "TECNICO",
+      "criticalItemsCount": 1,
+      "templateName": "Vistoria Estrutural e Hidráulica NBR 16747",
+      "inspectorDoc": "CFT-SP 209381920",
+      "status": "CONCLUIDA",
+      "condominiumId": "cond_1789817187694",
+      "technicianSignature": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==",
+      "syndicSignature": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==",
+      "supervisorNotifiedAt": "2026-09-19T11:26:27.710Z",
+      "startedAt": "2026-09-19T11:26:27.704Z",
+      "supervisorNotified": true,
+      "blockName": "Bloco Royal",
+      "companyName": "CAST Inspect",
+      "date": "2026-09-19"
+    },
+    {
+      "companyName": "CAST Inspect",
+      "inspectorId": "usr_tecnico_01",
+      "syncStatus": "synced",
+      "condominiumId": "cond_1789817187694",
+      "inspectorName": "Lucas Silva Ferreira",
+      "id": "VIS-SYNC-1789817187751",
+      "blockId": "blk_royal_1789817187691",
+      "syncedAt": "2026-09-19T11:26:27.751Z",
+      "blockName": "Bloco Royal",
+      "companyId": "emp_cast_01",
+      "inspectorRole": "TECNICO",
+      "environments": [],
+      "criticalItemsCount": 0,
+      "date": "2026-09-19",
+      "status": "CONCLUIDA",
+      "templateId": "tmpl_1789817187701",
+      "templateName": "Vistoria Estrutural e Hidráulica NBR 16747",
+      "condominiumName": "Condomínio Grand Palais"
+    },
+    {
+      "syncedAt": "2026-09-19T11:26:34.757Z",
+      "inspectorRole": "TECNICO",
+      "blockName": "Bloco Royal",
+      "companyId": "emp_cast_01",
+      "condominiumName": "Condomínio Grand Palais",
+      "templateId": "tmpl_1789817194725",
+      "criticalItemsCount": 0,
+      "status": "CONCLUIDA",
+      "blockId": "blk_royal_1789817194715",
+      "date": "2026-09-19",
+      "id": "VIS-SYNC-1789817194757",
+      "environments": [],
+      "templateName": "Vistoria Estrutural e Hidráulica NBR 16747",
+      "syncStatus": "synced",
+      "condominiumId": "cond_1789817194718",
+      "inspectorName": "Lucas Silva Ferreira",
+      "inspectorId": "usr_tecnico_01",
+      "companyName": "CAST Inspect"
     }
   ],
   "notifications": [
     {
-      "id": "notif_1789817194746",
-      "companyId": "emp_cast_01",
-      "inspectionId": "VIS-2026-4727",
-      "condominiumName": "Condomínio Grand Palais",
-      "blockName": "Bloco Royal",
-      "criticalCount": 1,
       "inspectorName": "Lucas Silva Ferreira",
-      "createdAt": "2026-09-19T11:26:34.746Z",
+      "condominiumName": "Condomínio Grand Palais",
+      "id": "notif_1789817187710",
+      "message": "Atenção: A vistoria VIS-2026-7704 no Condomínio Grand Palais (Bloco Royal) foi finalizada com 1 item(ns) com \"AGENDAR MANUTENÇÃO\".",
       "read": false,
-      "message": "Atenção: A vistoria VIS-2026-4727 no Condomínio Grand Palais (Bloco Royal) foi finalizada com 1 item(ns) com \"AGENDAR MANUTENÇÃO\"."
+      "inspectionId": "VIS-2026-7704",
+      "createdAt": "2026-09-19T11:26:27.710Z",
+      "criticalCount": 1,
+      "companyId": "emp_cast_01",
+      "blockName": "Bloco Royal"
     },
     {
-      "id": "notif_1789817187710",
-      "companyId": "emp_cast_01",
-      "inspectionId": "VIS-2026-7704",
-      "condominiumName": "Condomínio Grand Palais",
-      "blockName": "Bloco Royal",
-      "criticalCount": 1,
       "inspectorName": "Lucas Silva Ferreira",
-      "createdAt": "2026-09-19T11:26:27.710Z",
+      "id": "notif_1789817194746",
+      "condominiumName": "Condomínio Grand Palais",
+      "createdAt": "2026-09-19T11:26:34.746Z",
       "read": false,
-      "message": "Atenção: A vistoria VIS-2026-7704 no Condomínio Grand Palais (Bloco Royal) foi finalizada com 1 item(ns) com \"AGENDAR MANUTENÇÃO\"."
+      "companyId": "emp_cast_01",
+      "blockName": "Bloco Royal",
+      "message": "Atenção: A vistoria VIS-2026-4727 no Condomínio Grand Palais (Bloco Royal) foi finalizada com 1 item(ns) com \"AGENDAR MANUTENÇÃO\".",
+      "inspectionId": "VIS-2026-4727",
+      "criticalCount": 1
     }
   ]
 }

@@ -12,6 +12,7 @@ import { UsersPage } from './pages/UsersPage';
 import { CompaniesPage } from './pages/CompaniesPage';
 import { LoginPage } from './pages/LoginPage';
 import { DevDashboard } from './pages/DevDashboard';
+import { PwaInstallBanner } from './components/PwaInstallPrompt';
 
 function MainAppShell() {
   const { user, loading } = useAuth();
@@ -122,6 +123,7 @@ export default function App() {
   return (
     <AuthProvider>
       <MainAppShell />
+      <PwaInstallBanner />
     </AuthProvider>
   );
 }

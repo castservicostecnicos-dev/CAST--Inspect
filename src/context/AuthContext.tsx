@@ -126,7 +126,10 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     let newDoc = user.docRegistration;
 
     if (newRole === 'DEV') {
-      newName = user.email === 'ale11062@gmail.com' ? user.name : 'Equipe de Desenvolvimento (Dev)';
+      newName =
+        user.email === 'cast.servicostecnicos@gmail.com' || user.email === 'ale11062@gmail.com'
+          ? user.name
+          : 'Equipe de Desenvolvimento (Dev)';
       newDoc = undefined;
     } else if (newRole === 'GERENTE') {
       newName = 'Eng. Carlos Eduardo Castilho';
@@ -142,12 +145,26 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       newDoc = undefined;
     }
 
+    const devEmail =
+      user.id === 'usr_dev_cast' || user.email === 'cast.servicostecnicos@gmail.com'
+        ? 'cast.servicostecnicos@gmail.com'
+        : user.id === 'usr_dev_ale' || user.email === 'ale11062@gmail.com'
+        ? 'ale11062@gmail.com'
+        : 'dev@castinspect.com.br';
+
     const updated: User = {
       ...user,
       role: newRole,
       name: newName,
       docRegistration: newDoc,
-      email: newRole === 'DEV' ? (user.id === 'usr_dev_ale' || user.email === 'ale11062@gmail.com' ? 'ale11062@gmail.com' : 'dev@castinspect.com.br') : `${newRole.toLowerCase()}@${company?.tradeName?.toLowerCase().includes('alpha') ? 'alpha.com.br' : 'cast.com.br'}`,
+      email:
+        newRole === 'DEV'
+          ? devEmail
+          : `${newRole.toLowerCase()}@${
+              company?.tradeName?.toLowerCase().includes('alpha')
+                ? 'alpha.com.br'
+                : 'cast.com.br'
+            }`,
     };
 
     setUser(updated);

@@ -59,13 +59,24 @@ function getInitialSeedData(): DatabaseSchema {
 
   const users: User[] = [
     {
+      id: 'usr_dev_cast',
+      companyId: 'emp_cast_01',
+      companyName: 'CAST Inspect (Sistema)',
+      name: 'Dev Carlos (CAST)',
+      email: 'cast.servicostecnicos@gmail.com',
+      role: 'DEV',
+      password: 'Cast@2468',
+      active: true,
+      createdAt: '2025-01-01T00:00:00.000Z',
+    },
+    {
       id: 'usr_dev_ale',
       companyId: 'emp_cast_01',
       companyName: 'CAST Inspect (Sistema)',
       name: 'Dev Alexandre',
       email: 'ale11062@gmail.com',
       role: 'DEV',
-      password: 'Cast2468',
+      password: 'Cast@2468',
       active: true,
       createdAt: '2025-01-01T00:00:00.000Z',
     },
@@ -633,7 +644,8 @@ class JsonDatabase {
   }
 
   getUserByEmail(email: string): User | undefined {
-    return this.data.users.find((u) => u.email.toLowerCase() === email.toLowerCase());
+    const clean = (email || '').trim().toLowerCase();
+    return this.data.users.find((u) => (u.email || '').trim().toLowerCase() === clean);
   }
 
   saveUser(user: User): User {
