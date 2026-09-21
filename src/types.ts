@@ -2,6 +2,16 @@ export type UserRole = 'DEV' | 'GERENTE' | 'SUPERVISOR' | 'TECNICO' | 'ADM_PREDI
 
 export type ItemStatus = 'OK, MANUTENÇÃO EM DIA' | 'AGENDAR MANUTENÇÃO';
 
+export interface CompanyGoogleDriveConfig {
+  connected: boolean;
+  email?: string;
+  rootFolderId?: string;
+  connectedAt?: string;
+  connectedByUserId?: string;
+  connectedByUserName?: string;
+  accessToken?: string;
+}
+
 export interface Company {
   id: string;
   name: string;
@@ -15,6 +25,7 @@ export interface Company {
   active: boolean;
   logoUrl?: string;
   createdAt: string;
+  googleDriveConfig?: CompanyGoogleDriveConfig;
 }
 
 export interface User {
@@ -154,6 +165,8 @@ export interface Inspection {
   criticalItemsCount?: number;
   generalNotes?: string;
   syncStatus?: 'synced' | 'pending_sync';
+  drivePdfFileId?: string;
+  drivePdfUrl?: string;
 }
 
 export interface SupervisorNotification {

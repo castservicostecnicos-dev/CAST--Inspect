@@ -1,15 +1,19 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Camera, Upload, Trash2, X, Check, Image as ImageIcon, Loader2, CloudUpload, ExternalLink, HardDrive } from 'lucide-react';
+import { Camera, Upload, Trash2, X, Check, Image as ImageIcon, Loader2, CloudUpload, ExternalLink, HardDrive, ShieldAlert } from 'lucide-react';
 import { InspectionPhoto } from '../types';
 import { processInspectionPhoto } from '../lib/imageProcessor';
+import { useAuth } from '../context/AuthContext';
 import {
   signInWithGoogleDrive,
   getCachedGoogleToken,
+  setCachedGoogleToken,
   getGoogleUser,
   getDriveEmail,
   disconnectGoogleDrive,
   uploadFileToDrive,
   findOrCreateFolder,
+  connectCompanyGoogleDrive,
+  disconnectCompanyGoogleDrive,
 } from '../services/driveService';
 
 interface PhotoUploadModalProps {
@@ -33,6 +37,7 @@ export const PhotoUploadModal: React.FC<PhotoUploadModalProps> = ({
   inspectionId = 'Vistoria',
   companyName = 'CAST Inspect',
 }) => {
+  const { user, company, canManageCompanies, isDev } = useAuth();
   const [processing, setProcessing] = useState(false);
   const [syncingDrive, setSyncingDrive] = useState(false);
   const [driveConnected, setDriveConnected] = useState(!!getCachedGoogleToken());
@@ -41,23 +46,55 @@ export const PhotoUploadModal: React.FC<PhotoUploadModalProps> = ({
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const cameraInputRef = useRef<HTMLInputElement | null>(null);
 
+  // Can this user connect/configure the corporate Google Drive?
+  const canConfigureDrive = canManageCompanies || isDev;
+
   useEffect(() => {
     setLocalPhotos(photos);
   }, [photos]);
 
   useEffect(() => {
-    setDriveConnected(!!getCachedGoogleToken());
-    setDriveUserEmail(getDriveEmail());
-  }, [isOpen]);
+    // Check local token first
+    const hasLocalToken = !!getCachedGoogleToken();
+    if (hasLocalToken) {
+      setDriveConnected(true);
+      setDriveUserEmail(getDriveEmail());
+    } else if (company?.googleDriveConfig?.connected) {
+      // Company has configured Drive
+      setDriveConnected(true);
+      setDriveUserEmail(company.googleDriveConfig.email || 'Conta Corporativa');
+      if (company.googleDriveConfig.accessToken) {
+        setCachedGoogleToken(company.googleDriveConfig.accessToken, company.googleDriveConfig.email);
+      }
+    } else {
+      setDriveConnected(false);
+      setDriveUserEmail(null);
+    }
+  }, [isOpen, company]);
 
   if (!isOpen) return null;
 
   const handleConnectDrive = async () => {
+    if (!canConfigureDrive) {
+      alert('Acesso restrito: Apenas a administração da empresa ou desenvolvedores podem vincular a conta do Google Drive corporativo.');
+      return;
+    }
+
     try {
       setSyncingDrive(true);
-      const { user } = await signInWithGoogleDrive();
-      setDriveConnected(true);
-      setDriveUserEmail(user.email || getDriveEmail());
+      if (company && user) {
+        const { config } = await connectCompanyGoogleDrive(company.id, {
+          id: user.id,
+          name: user.name,
+        });
+        setDriveConnected(true);
+        setDriveUserEmail(config.email || 'Conta Corporativa');
+        alert(`Conta corporativa do Google Drive (${config.email}) conectada com sucesso para a empresa ${company.name}!`);
+      } else {
+        const { user: gUser } = await signInWithGoogleDrive();
+        setDriveConnected(true);
+        setDriveUserEmail(gUser.email || getDriveEmail());
+      }
     } catch (err: any) {
       console.error('Google Drive auth error:', err);
       alert(`Não foi possível conectar ao Google Drive: ${err.message || err}`);
@@ -67,8 +104,17 @@ export const PhotoUploadModal: React.FC<PhotoUploadModalProps> = ({
   };
 
   const handleDisconnect = async () => {
-    if (confirm('Deseja desconectar a conta do Google Drive?')) {
-      await disconnectGoogleDrive();
+    if (!canConfigureDrive) {
+      alert('Acesso restrito: Apenas administradores podem desvincular o Google Drive da empresa.');
+      return;
+    }
+
+    if (confirm('Deseja desconectar a conta do Google Drive da empresa?')) {
+      if (company) {
+        await disconnectCompanyGoogleDrive(company.id);
+      } else {
+        await disconnectGoogleDrive();
+      }
       setDriveConnected(false);
       setDriveUserEmail(null);
     }
@@ -223,40 +269,72 @@ export const PhotoUploadModal: React.FC<PhotoUploadModalProps> = ({
                 <span className="text-emerald-700 font-semibold bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
                   Conectado ({driveUserEmail || 'Conta Corporativa'})
                 </span>
-                <button
-                  type="button"
-                  onClick={handleDisconnect}
-                  className="text-slate-400 hover:text-red-600 underline text-[10px] ml-1 transition-colors"
-                  title="Desconectar Google Drive"
-                >
-                  Desconectar
-                </button>
+                {canConfigureDrive && (
+                  <button
+                    type="button"
+                    onClick={handleDisconnect}
+                    className="text-slate-400 hover:text-red-600 underline text-[10px] ml-1 transition-colors"
+                    title="Desconectar Google Drive da Empresa"
+                  >
+                    Desconectar
+                  </button>
+                )}
               </div>
             ) : (
-              <span className="text-slate-500 italic">
-                Não sincronizado
-              </span>
+              <div className="flex items-center gap-1.5">
+                <span className="text-slate-500 italic">
+                  Não vinculado à empresa
+                </span>
+                {!canConfigureDrive && (
+                  <span className="text-[10px] text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200">
+                    Configuração restrita à administração
+                  </span>
+                )}
+              </div>
             )}
           </div>
 
-          <button
-            type="button"
-            disabled={syncingDrive}
-            onClick={driveConnected ? handleSyncPhotosToDrive : handleConnectDrive}
-            className="flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white px-2.5 py-1 rounded-lg font-semibold text-[11px] shadow-xs transition-colors disabled:opacity-50"
-          >
-            {syncingDrive ? (
-              <>
-                <Loader2 className="w-3 h-3 animate-spin" />
-                <span>Enviando...</span>
-              </>
-            ) : (
-              <>
-                <CloudUpload className="w-3.5 h-3.5" />
-                <span>{driveConnected ? 'Salvar Fotos no Drive' : 'Conectar Google Drive'}</span>
-              </>
-            )}
-          </button>
+          <div className="flex items-center gap-2">
+            {driveConnected ? (
+              <button
+                type="button"
+                disabled={syncingDrive}
+                onClick={handleSyncPhotosToDrive}
+                className="flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white px-2.5 py-1 rounded-lg font-semibold text-[11px] shadow-xs transition-colors disabled:opacity-50"
+              >
+                {syncingDrive ? (
+                  <>
+                    <Loader2 className="w-3 h-3 animate-spin" />
+                    <span>Enviando fotos...</span>
+                  </>
+                ) : (
+                  <>
+                    <CloudUpload className="w-3.5 h-3.5" />
+                    <span>Salvar Fotos no Drive</span>
+                  </>
+                )}
+              </button>
+            ) : canConfigureDrive ? (
+              <button
+                type="button"
+                disabled={syncingDrive}
+                onClick={handleConnectDrive}
+                className="flex items-center gap-1.5 bg-blue-600 hover:bg-blue-700 text-white px-2.5 py-1 rounded-lg font-semibold text-[11px] shadow-xs transition-colors disabled:opacity-50"
+              >
+                {syncingDrive ? (
+                  <>
+                    <Loader2 className="w-3 h-3 animate-spin" />
+                    <span>Conectando...</span>
+                  </>
+                ) : (
+                  <>
+                    <HardDrive className="w-3.5 h-3.5" />
+                    <span>Vincular Drive da Empresa</span>
+                  </>
+                )}
+              </button>
+            ) : null}
+          </div>
         </div>
 
         {/* Orientation Requirement Banner */}

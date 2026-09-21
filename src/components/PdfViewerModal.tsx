@@ -1,8 +1,16 @@
 import React, { useState, useEffect } from 'react';
-import { X, Download, Share2, Printer, FileText, Loader2, CheckCircle, AlertTriangle } from 'lucide-react';
+import { X, Download, Share2, Printer, FileText, Loader2, CheckCircle, AlertTriangle, HardDrive, ExternalLink } from 'lucide-react';
 import { Inspection } from '../types';
 import { generateInspectionPdf } from '../lib/pdfGenerator';
 import { ShareModal } from './ShareModal';
+import { useAuth } from '../context/AuthContext';
+import {
+  getCachedGoogleToken,
+  setCachedGoogleToken,
+  findOrCreateFolder,
+  uploadFileToDrive,
+} from '../services/driveService';
+import { FirestoreService } from '../lib/firestoreSync';
 
 interface PdfViewerModalProps {
   isOpen: boolean;
@@ -15,9 +23,25 @@ export const PdfViewerModal: React.FC<PdfViewerModalProps> = ({
   onClose,
   inspection,
 }) => {
+  const { company } = useAuth();
   const [pdfUrl, setPdfUrl] = useState<string | null>(null);
+  const [pdfBlob, setPdfBlob] = useState<Blob | null>(null);
   const [loading, setLoading] = useState(true);
   const [showShareModal, setShowShareModal] = useState(false);
+  const [savingToDrive, setSavingToDrive] = useState(false);
+  const [drivePdfUrl, setDrivePdfUrl] = useState<string | undefined>(inspection.drivePdfUrl);
+  const [driveSaveSuccess, setDriveSaveSuccess] = useState(false);
+
+  useEffect(() => {
+    setDrivePdfUrl(inspection.drivePdfUrl);
+  }, [inspection.drivePdfUrl]);
+
+  // Ensure Google token is synchronized with company config
+  useEffect(() => {
+    if (company?.googleDriveConfig?.accessToken && !getCachedGoogleToken()) {
+      setCachedGoogleToken(company.googleDriveConfig.accessToken, company.googleDriveConfig.email);
+    }
+  }, [company]);
 
   useEffect(() => {
     let url: string | null = null;
@@ -30,6 +54,7 @@ export const PdfViewerModal: React.FC<PdfViewerModalProps> = ({
             download: false,
           });
           if (blob) {
+            setPdfBlob(blob);
             url = URL.createObjectURL(blob);
             setPdfUrl(url);
           }
@@ -59,6 +84,71 @@ export const PdfViewerModal: React.FC<PdfViewerModalProps> = ({
     }
   };
 
+  const handleSaveToGoogleDrive = async () => {
+    if (!company?.googleDriveConfig?.connected && !getCachedGoogleToken()) {
+      alert('O Google Drive corporativo não está configurado pela administração da empresa. Entre em contato com um Gerente ou acesse a Central Dev para vincular.');
+      return;
+    }
+
+    try {
+      setSavingToDrive(true);
+      let blob = pdfBlob;
+      if (!blob) {
+        blob = await generateInspectionPdf(inspection, {
+          returnBlob: true,
+          download: false,
+        });
+      }
+
+      if (!blob) {
+        throw new Error('Falha ao compilar o arquivo PDF.');
+      }
+
+      const compName = company?.tradeName || company?.name || 'CAST Inspect';
+      const companyFolderId = await findOrCreateFolder(compName);
+      const inspectionFolderId = await findOrCreateFolder(inspection.id, companyFolderId);
+
+      const fileName = `Relatorio_Vistoria_${inspection.id}_${inspection.condominiumName}.pdf`
+        .replace(/[/\\?%*:|"<>]/g, '_');
+
+      const driveRes = await uploadFileToDrive({
+        name: fileName,
+        mimeType: 'application/pdf',
+        blob,
+        parentFolderId: inspectionFolderId,
+      });
+
+      // Update inspection with drive file ID and URL
+      const updatedData = {
+        drivePdfFileId: driveRes.id,
+        drivePdfUrl: driveRes.webViewLink,
+      };
+
+      setDrivePdfUrl(driveRes.webViewLink);
+      setDriveSaveSuccess(true);
+
+      // Persist to server / Firestore
+      await fetch(`/api/inspections/${inspection.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updatedData),
+      }).catch(console.error);
+
+      await FirestoreService.saveInspectionToFirestore({
+        ...inspection,
+        ...updatedData,
+      }).catch(console.error);
+
+      setTimeout(() => setDriveSaveSuccess(false), 5000);
+      alert('Relatório PDF salvo com sucesso no Google Drive corporativo da empresa!');
+    } catch (err: any) {
+      console.error('Falha ao salvar PDF no Google Drive:', err);
+      alert(`Erro ao salvar PDF no Google Drive: ${err.message || err}`);
+    } finally {
+      setSavingToDrive(false);
+    }
+  };
+
   return (
     <>
       <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-slate-900/70 backdrop-blur-xs animate-fadeIn w-full max-w-full overflow-hidden">
@@ -80,6 +170,40 @@ export const PdfViewerModal: React.FC<PdfViewerModalProps> = ({
             </div>
 
             <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+              {drivePdfUrl ? (
+                <a
+                  href={drivePdfUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-1.5 bg-emerald-700/80 hover:bg-emerald-600 text-white text-xs font-semibold px-2.5 sm:px-3 py-1.5 rounded-lg border border-emerald-500/50 transition-colors shadow-xs"
+                  title="Abrir arquivo diretamente no Google Drive da Empresa"
+                >
+                  <HardDrive className="w-3.5 h-3.5 text-emerald-300" />
+                  <span className="hidden sm:inline">No Drive</span>
+                  <ExternalLink className="w-3 h-3 text-emerald-300" />
+                </a>
+              ) : (
+                <button
+                  type="button"
+                  disabled={savingToDrive || loading}
+                  onClick={handleSaveToGoogleDrive}
+                  className="flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold px-2.5 sm:px-3 py-1.5 rounded-lg shadow-sm transition-colors disabled:opacity-50"
+                  title="Salvar cópia deste relatório PDF diretamente no Google Drive da Empresa"
+                >
+                  {savingToDrive ? (
+                    <>
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      <span className="hidden sm:inline">Salvando...</span>
+                    </>
+                  ) : (
+                    <>
+                      <HardDrive className="w-3.5 h-3.5" />
+                      <span>Salvar no Drive</span>
+                    </>
+                  )}
+                </button>
+              )}
+
               <button
                 onClick={() => setShowShareModal(true)}
                 className="hidden sm:flex items-center gap-1.5 bg-slate-800 hover:bg-slate-700 text-white text-xs font-semibold px-3 py-1.5 rounded-lg border border-slate-700 transition-colors"

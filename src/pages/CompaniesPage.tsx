@@ -10,15 +10,22 @@ import {
   MapPin,
   X,
   Loader2,
+  HardDrive,
+  CloudUpload,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { Company } from '../types';
+import {
+  connectCompanyGoogleDrive,
+  disconnectCompanyGoogleDrive,
+} from '../services/driveService';
 
 export const CompaniesPage: React.FC = () => {
-  const { company, availableCompanies, switchCompany, canManageCompanies } = useAuth();
+  const { user, company, availableCompanies, switchCompany, canManageCompanies } = useAuth();
   const [companies, setCompanies] = useState<Company[]>(availableCompanies);
   const [loading, setLoading] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [connectingDriveCompanyId, setConnectingDriveCompanyId] = useState<string | null>(null);
 
   // Form
   const [name, setName] = useState('');
@@ -82,6 +89,52 @@ export const CompaniesPage: React.FC = () => {
       }
     } catch (e) {
       alert('Erro ao cadastrar empresa.');
+    }
+  };
+
+  const handleConnectDrive = async (comp: Company) => {
+    if (!canManageCompanies) {
+      alert('Acesso restrito: Apenas administradores podem configurar o Google Drive corporativo.');
+      return;
+    }
+
+    try {
+      setConnectingDriveCompanyId(comp.id);
+      const { config } = await connectCompanyGoogleDrive(comp.id, {
+        id: user?.id || 'admin',
+        name: user?.name || 'Administrador',
+      });
+      alert(`Google Drive (${config.email}) vinculado com sucesso para a empresa ${comp.name}!`);
+      await fetchCompanies();
+    } catch (err: any) {
+      console.error('Erro ao conectar Google Drive:', err);
+      alert(`Falha ao conectar Google Drive: ${err.message || err}`);
+    } finally {
+      setConnectingDriveCompanyId(null);
+    }
+  };
+
+  const handleDisconnectDrive = async (comp: Company) => {
+    if (!canManageCompanies) {
+      alert('Acesso restrito: Apenas administradores podem desvincular o Google Drive.');
+      return;
+    }
+
+    if (confirm(`Deseja desvincular a conta do Google Drive da empresa "${comp.tradeName || comp.name}"?`)) {
+      try {
+        setConnectingDriveCompanyId(comp.id);
+        const ok = await disconnectCompanyGoogleDrive(comp.id);
+        if (ok) {
+          alert('Google Drive desvinculado com sucesso.');
+          await fetchCompanies();
+        } else {
+          alert('Erro ao desvincular Google Drive.');
+        }
+      } catch (err: any) {
+        alert(`Erro: ${err.message || err}`);
+      } finally {
+        setConnectingDriveCompanyId(null);
+      }
     }
   };
 
@@ -173,6 +226,70 @@ export const CompaniesPage: React.FC = () => {
                       <span>{c.address}</span>
                     </div>
                   )}
+
+                  {/* Google Drive Status for Company */}
+                  <div className="mt-3 pt-2.5 border-t border-slate-100/80">
+                    <div className="flex items-center justify-between gap-2 p-2 rounded-xl bg-slate-50 border border-slate-200/80">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <HardDrive className={`w-4 h-4 shrink-0 ${c.googleDriveConfig?.connected ? 'text-emerald-600' : 'text-slate-400'}`} />
+                        <div className="min-w-0">
+                          <p className="text-[11px] font-semibold text-slate-800 flex items-center gap-1.5 truncate">
+                            <span>Google Drive Corporativo</span>
+                            {c.googleDriveConfig?.connected ? (
+                              <span className="text-[9px] font-bold text-emerald-700 bg-emerald-100 px-1.5 py-0.2 rounded">
+                                Conectado
+                              </span>
+                            ) : (
+                              <span className="text-[9px] font-medium text-slate-500 bg-slate-200/60 px-1.5 py-0.2 rounded">
+                                Desconectado
+                              </span>
+                            )}
+                          </p>
+                          <p className="text-[10px] text-slate-500 truncate">
+                            {c.googleDriveConfig?.connected
+                              ? c.googleDriveConfig.email || 'Conta Corporativa'
+                              : 'Armazenamento em nuvem para fotos e relatórios'}
+                          </p>
+                        </div>
+                      </div>
+
+                      {canManageCompanies && (
+                        <div>
+                          {c.googleDriveConfig?.connected ? (
+                            <button
+                              type="button"
+                              disabled={connectingDriveCompanyId === c.id}
+                              onClick={() => handleDisconnectDrive(c)}
+                              className="text-[10px] font-semibold text-rose-600 hover:text-rose-700 hover:bg-rose-50 px-2 py-1 rounded-lg border border-rose-200 transition-colors disabled:opacity-50 shrink-0"
+                              title="Desvincular Google Drive desta empresa"
+                            >
+                              {connectingDriveCompanyId === c.id ? 'Aguarde...' : 'Desvincular'}
+                            </button>
+                          ) : (
+                            <button
+                              type="button"
+                              disabled={connectingDriveCompanyId === c.id}
+                              onClick={() => handleConnectDrive(c)}
+                              className="flex items-center gap-1 text-[10px] font-bold text-blue-700 hover:text-blue-800 bg-blue-50 hover:bg-blue-100 border border-blue-200 px-2.5 py-1 rounded-lg transition-colors disabled:opacity-50 shrink-0"
+                              title="Conectar Google Drive à empresa"
+                            >
+                              {connectingDriveCompanyId === c.id ? (
+                                <>
+                                  <Loader2 className="w-3 h-3 animate-spin" />
+                                  <span>Conectando...</span>
+                                </>
+                              ) : (
+                                <>
+                                  <CloudUpload className="w-3 h-3" />
+                                  <span>Vincular Drive</span>
+                                </>
+                              )}
+                            </button>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  </div>
                 </div>
               </div>
 

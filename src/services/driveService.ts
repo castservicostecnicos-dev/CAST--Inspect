@@ -1,5 +1,6 @@
 import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut, User } from 'firebase/auth';
 import app from '../firebase';
+import { CompanyGoogleDriveConfig } from '../types';
 
 const auth = getAuth(app);
 
@@ -47,9 +48,77 @@ export const getCachedGoogleToken = () => {
   return cachedAccessToken;
 };
 
+export const setCachedGoogleToken = (token: string, email?: string) => {
+  cachedAccessToken = token;
+  if (typeof window !== 'undefined') {
+    localStorage.setItem(TOKEN_KEY, token);
+    if (email) {
+      cachedDriveEmail = email;
+      localStorage.setItem(EMAIL_KEY, email);
+    }
+  }
+};
+
 export const getGoogleUser = () => googleUser;
 export const getDriveEmail = () => cachedDriveEmail || googleUser?.email || null;
 export const isGoogleDriveConnected = () => !!getCachedGoogleToken();
+
+/**
+ * Configure company Google Drive integration via Admin/Gerente or Dev
+ */
+export const connectCompanyGoogleDrive = async (
+  companyId: string,
+  user: { id: string; name: string }
+): Promise<{ success: boolean; config: CompanyGoogleDriveConfig }> => {
+  const { user: gUser, accessToken } = await signInWithGoogleDrive();
+  const email = gUser.email || '';
+
+  // 1. Create or find root folder for the company
+  let rootFolderId: string | undefined;
+  try {
+    rootFolderId = await findOrCreateFolder('CAST Inspect — Vistorias');
+  } catch (err) {
+    console.warn('Erro ao criar pasta raiz no Drive:', err);
+  }
+
+  const driveConfig: CompanyGoogleDriveConfig = {
+    connected: true,
+    email,
+    rootFolderId,
+    connectedAt: new Date().toISOString(),
+    connectedByUserId: user.id,
+    connectedByUserName: user.name,
+    accessToken,
+  };
+
+  // Persist to company in backend
+  const res = await fetch(`/api/companies/${companyId}/drive-config`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(driveConfig),
+  });
+
+  if (!res.ok) {
+    throw new Error('Falha ao salvar configuração do Google Drive na empresa.');
+  }
+
+  return { success: true, config: driveConfig };
+};
+
+/**
+ * Disconnect company Google Drive integration
+ */
+export const disconnectCompanyGoogleDrive = async (companyId: string): Promise<boolean> => {
+  await disconnectGoogleDrive();
+  try {
+    const res = await fetch(`/api/companies/${companyId}/drive-config`, {
+      method: 'DELETE',
+    });
+    return res.ok;
+  } catch {
+    return false;
+  }
+};
 
 // Google Sign-In with popup to acquire Drive token
 export const signInWithGoogleDrive = async (): Promise<{ user: User; accessToken: string }> => {
@@ -92,7 +161,8 @@ export const disconnectGoogleDrive = async () => {
 
 // Helper to find or create a folder in Google Drive
 export const findOrCreateFolder = async (folderName: string, parentFolderId?: string): Promise<string> => {
-  if (!cachedAccessToken) {
+  const token = getCachedGoogleToken();
+  if (!token) {
     throw new Error('Não autenticado com o Google Drive');
   }
 
@@ -105,7 +175,7 @@ export const findOrCreateFolder = async (folderName: string, parentFolderId?: st
     `https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(query)}&fields=files(id,name)`,
     {
       headers: {
-        Authorization: `Bearer ${cachedAccessToken}`,
+        Authorization: `Bearer ${token}`,
       },
     }
   );
@@ -134,7 +204,7 @@ export const findOrCreateFolder = async (folderName: string, parentFolderId?: st
   const createRes = await fetch('https://www.googleapis.com/drive/v3/files', {
     method: 'POST',
     headers: {
-      Authorization: `Bearer ${cachedAccessToken}`,
+      Authorization: `Bearer ${token}`,
       'Content-Type': 'application/json',
     },
     body: JSON.stringify(metadata),
@@ -153,25 +223,34 @@ export const findOrCreateFolder = async (folderName: string, parentFolderId?: st
   return created.id;
 };
 
-// Upload photo/file (Data URL or base64) to Google Drive
+// Upload photo/file (Data URL or Blob) to Google Drive
 export const uploadFileToDrive = async ({
   name,
   mimeType,
   dataUrl,
+  blob,
   parentFolderId,
 }: {
   name: string;
   mimeType: string;
-  dataUrl: string;
+  dataUrl?: string;
+  blob?: Blob;
   parentFolderId?: string;
 }): Promise<{ id: string; webViewLink?: string }> => {
-  if (!cachedAccessToken) {
+  const token = getCachedGoogleToken();
+  if (!token) {
     throw new Error('Google Drive não conectado.');
   }
 
-  // Convert base64 dataUrl to blob
-  const response = await fetch(dataUrl);
-  const blob = await response.blob();
+  let fileBlob: Blob;
+  if (blob) {
+    fileBlob = blob;
+  } else if (dataUrl) {
+    const response = await fetch(dataUrl);
+    fileBlob = await response.blob();
+  } else {
+    throw new Error('Nenhum dado fornecido para upload no Google Drive.');
+  }
 
   const metadata: any = {
     name,
@@ -186,14 +265,14 @@ export const uploadFileToDrive = async ({
     'metadata',
     new Blob([JSON.stringify(metadata)], { type: 'application/json' })
   );
-  form.append('file', blob);
+  form.append('file', fileBlob);
 
   const uploadRes = await fetch(
     'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,name,webViewLink',
     {
       method: 'POST',
       headers: {
-        Authorization: `Bearer ${cachedAccessToken}`,
+        Authorization: `Bearer ${token}`,
       },
       body: form,
     }

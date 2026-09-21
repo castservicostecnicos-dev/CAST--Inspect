@@ -18,12 +18,35 @@ export function getFirestoreDb(): Firestore | null {
 
   try {
     const configPath = path.join(process.cwd(), 'firebase-applet-config.json');
-    if (!fs.existsSync(configPath)) {
-      console.warn('[Firestore] firebase-applet-config.json not found');
-      return null;
+    let config: any = null;
+
+    if (fs.existsSync(configPath)) {
+      try {
+        config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
+      } catch (e) {
+        console.warn('[Firestore] Error reading config file, using fallback config');
+      }
+    } else if (process.env.FIREBASE_CONFIG) {
+      try {
+        config = JSON.parse(process.env.FIREBASE_CONFIG);
+      } catch (e) {
+        console.warn('[Firestore] Error parsing FIREBASE_CONFIG env');
+      }
     }
 
-    const config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
+    if (!config) {
+      // Fallback configuration ensuring Firestore connectivity when deployed on external hosts (e.g. Render)
+      config = {
+        projectId: 'gen-lang-client-0078699210',
+        appId: '1:215710695059:web:410f3074d03881963d1766',
+        apiKey: 'AIzaSyD0lm4ObQQGIG7NfRj0yI5qYr_ydSItphU',
+        authDomain: 'gen-lang-client-0078699210.firebaseapp.com',
+        firestoreDatabaseId: 'ai-studio-castinspect-e59bc313-1f2e-4047-8468-08d4e7bad989',
+        storageBucket: 'gen-lang-client-0078699210.firebasestorage.app',
+        messagingSenderId: '215710695059',
+      };
+    }
+
     const app = getApps().length === 0 ? initializeApp(config) : getApp();
     const dbId = config.firestoreDatabaseId || '(default)';
     firestoreInstance = initializeFirestore(app, {}, dbId);

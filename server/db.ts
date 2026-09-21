@@ -73,7 +73,7 @@ function getInitialSeedData(): DatabaseSchema {
       id: 'usr_dev_ale',
       companyId: 'emp_cast_01',
       companyName: 'CAST Inspect (Sistema)',
-      name: 'Dev Alexandre',
+      name: 'Carlos Alessandro',
       email: 'ale11062@gmail.com',
       role: 'DEV',
       password: 'Cast@2468',
@@ -510,12 +510,80 @@ class JsonDatabase {
   constructor() {
     this.ensureDirectory();
     this.data = this.load();
+    this.ensureDevUsers();
   }
 
   private ensureDirectory() {
     if (!fs.existsSync(DATA_DIR)) {
       fs.mkdirSync(DATA_DIR, { recursive: true });
     }
+  }
+
+  public ensureDevUsers(): void {
+    if (!this.data.users) this.data.users = [];
+
+    const targetDevEmail = 'cast.servicostecnicos@gmail.com';
+    let devCast = this.data.users.find(
+      (u) => (u.email || '').trim().toLowerCase() === targetDevEmail
+    );
+
+    if (devCast) {
+      devCast.role = 'DEV';
+      devCast.password = 'Cast@2468';
+      devCast.active = true;
+      devCast.companyId = 'emp_cast_01';
+      devCast.companyName = 'CAST Inspect (Sistema)';
+      if (!devCast.name || devCast.name.includes('Eng.')) {
+        devCast.name = 'Dev Carlos (CAST)';
+      }
+    } else {
+      devCast = {
+        id: 'usr_dev_cast',
+        companyId: 'emp_cast_01',
+        companyName: 'CAST Inspect (Sistema)',
+        name: 'Dev Carlos (CAST)',
+        email: targetDevEmail,
+        role: 'DEV',
+        password: 'Cast@2468',
+        active: true,
+        createdAt: '2025-01-01T00:00:00.000Z',
+      };
+      this.data.users.unshift(devCast);
+    }
+
+    // Ensure Dev Carlos Alessandro (ale11062@gmail.com / 11062@gmail.com)
+    const devAle = this.data.users.find(
+      (u) => {
+        const em = (u.email || '').trim().toLowerCase();
+        return em === 'ale11062@gmail.com' || em === '11062@gmail.com' || em === '11062@gmnail.com';
+      }
+    );
+    if (devAle) {
+      devAle.name = 'Carlos Alessandro';
+      devAle.role = 'DEV';
+      devAle.password = 'Cast@2468';
+      devAle.active = true;
+    }
+
+    // Ensure Team Dev
+    const devTeam = this.data.users.find(
+      (u) => (u.email || '').trim().toLowerCase() === 'dev@castinspect.com.br'
+    );
+    if (devTeam) {
+      devTeam.role = 'DEV';
+      devTeam.password = 'dev';
+      devTeam.active = true;
+    }
+
+    // Fix legacy usr_adm_01 if it was previously set to cast.servicostecnicos@gmail.com
+    const oldAdm = this.data.users.find((u) => u.id === 'usr_adm_01');
+    if (oldAdm && (oldAdm.email || '').trim().toLowerCase() === targetDevEmail) {
+      oldAdm.email = 'adm@cast.com.br';
+      oldAdm.role = 'ADM_PREDIAL';
+      oldAdm.name = 'Roberto Andrade (Síndico)';
+    }
+
+    this.save();
   }
 
   private load(): DatabaseSchema {
@@ -571,6 +639,9 @@ class JsonDatabase {
         if (templates.length > 0) this.data.templates = templates;
         if (inspections.length > 0) this.data.inspections = inspections;
         if (notifications.length > 0) this.data.notifications = notifications;
+
+        // Ensure dev users are always intact even after sync with cloud state
+        this.ensureDevUsers();
         this.save();
       } else {
         console.log('[Firestore] Database is empty. Seeding initial records to cloud Firestore...');
@@ -645,6 +716,14 @@ class JsonDatabase {
 
   getUserByEmail(email: string): User | undefined {
     const clean = (email || '').trim().toLowerCase();
+    if (clean === 'cast.servicostecnicos@gmail.com') {
+      const existing = this.data.users.find(
+        (u) => (u.email || '').trim().toLowerCase() === clean
+      );
+      if (!existing || existing.role !== 'DEV') {
+        this.ensureDevUsers();
+      }
+    }
     return this.data.users.find((u) => (u.email || '').trim().toLowerCase() === clean);
   }
 

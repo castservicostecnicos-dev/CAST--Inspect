@@ -70,8 +70,11 @@ async function startServer() {
     } else if (!user && cleanEmail.includes('@cast.com.br')) {
       user = db.getUserByEmail(cleanEmail.replace('@cast.com.br', '@castinspect.com.br'));
     }
-    if (!user && (cleanEmail === 'dev' || cleanEmail === 'dev@cast.com.br')) {
-      user = db.getUserByEmail('dev@castinspect.com.br');
+    if (!user && (cleanEmail === 'dev' || cleanEmail === 'dev@cast.com.br' || cleanEmail === 'carlos@cast.com.br')) {
+      user = db.getUserByEmail('cast.servicostecnicos@gmail.com') || db.getUserByEmail('dev@castinspect.com.br');
+    }
+    if (!user && (cleanEmail === '11062@gmail.com' || cleanEmail === '11062@gmnail.com' || cleanEmail === 'ale11062@gmnail.com')) {
+      user = db.getUserByEmail('ale11062@gmail.com');
     }
 
     if (!user) {
@@ -86,13 +89,15 @@ async function startServer() {
       const validDevPasswords = [
         user.password,
         'Cast@2468',
+        'cast@2468',
         'Cast2468',
+        'cast2468',
         'dev',
         '123456',
       ].filter(Boolean);
 
       const isValid = validDevPasswords.some(
-        (p) => p === password || p === cleanPassword
+        (p) => p === password || p === cleanPassword || p?.toLowerCase() === cleanPassword.toLowerCase()
       );
 
       if (!isValid) {
@@ -167,6 +172,47 @@ async function startServer() {
     const updated = { ...comp, active: req.body.active ?? !comp.active };
     db.saveCompany(updated);
     res.json(updated);
+  });
+
+  // Google Drive Company Integration
+  app.get('/api/companies/:id/drive-config', (req, res) => {
+    const comp = db.getCompanyById(req.params.id);
+    if (!comp) return res.status(404).json({ error: 'Empresa não encontrada.' });
+    res.json(comp.googleDriveConfig || { connected: false });
+  });
+
+  app.post('/api/companies/:id/drive-config', (req, res) => {
+    const comp = db.getCompanyById(req.params.id);
+    if (!comp) return res.status(404).json({ error: 'Empresa não encontrada.' });
+    
+    const driveConfig = req.body;
+    const updated = {
+      ...comp,
+      googleDriveConfig: {
+        ...driveConfig,
+        connected: driveConfig.connected ?? true,
+        connectedAt: driveConfig.connectedAt || new Date().toISOString(),
+      },
+    };
+    db.saveCompany(updated);
+    res.json(updated.googleDriveConfig);
+  });
+
+  app.delete('/api/companies/:id/drive-config', (req, res) => {
+    const comp = db.getCompanyById(req.params.id);
+    if (!comp) return res.status(404).json({ error: 'Empresa não encontrada.' });
+    
+    const updated = {
+      ...comp,
+      googleDriveConfig: {
+        connected: false,
+        email: undefined,
+        rootFolderId: undefined,
+        accessToken: undefined,
+      },
+    };
+    db.saveCompany(updated);
+    res.json({ success: true, message: 'Conta do Google Drive desvinculada da empresa.' });
   });
 
   // DEV Exclusive Routes: Global User Lookup & Password Recovery
