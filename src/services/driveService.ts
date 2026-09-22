@@ -223,6 +223,24 @@ export const findOrCreateFolder = async (folderName: string, parentFolderId?: st
   return created.id;
 };
 
+function dataUrlToBlob(dataUrl: string): Blob {
+  try {
+    const arr = dataUrl.split(',');
+    const mimeMatch = arr[0].match(/:(.*?);/);
+    const mime = mimeMatch ? mimeMatch[1] : 'image/jpeg';
+    const bstr = atob(arr[1] || '');
+    let n = bstr.length;
+    const u8arr = new Uint8Array(n);
+    while (n--) {
+      u8arr[n] = bstr.charCodeAt(n);
+    }
+    return new Blob([u8arr], { type: mime });
+  } catch (e) {
+    console.warn('Erro ao converter dataUrl para Blob em memória:', e);
+    return new Blob([], { type: 'image/jpeg' });
+  }
+}
+
 // Upload photo/file (Data URL or Blob) to Google Drive
 export const uploadFileToDrive = async ({
   name,
@@ -246,8 +264,12 @@ export const uploadFileToDrive = async ({
   if (blob) {
     fileBlob = blob;
   } else if (dataUrl) {
-    const response = await fetch(dataUrl);
-    fileBlob = await response.blob();
+    if (dataUrl.startsWith('data:')) {
+      fileBlob = dataUrlToBlob(dataUrl);
+    } else {
+      const response = await fetch(dataUrl);
+      fileBlob = await response.blob();
+    }
   } else {
     throw new Error('Nenhum dado fornecido para upload no Google Drive.');
   }

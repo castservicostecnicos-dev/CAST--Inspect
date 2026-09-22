@@ -101,38 +101,53 @@ export const InspectionForm: React.FC<InspectionFormProps> = ({
       if (!company) return;
       setLoading(true);
       try {
-        const [resCondos, resTemplates] = await Promise.all([
-          fetch('/api/condominiums', { headers: { 'x-company-id': company.id } }),
-          fetch('/api/templates', { headers: { 'x-company-id': company.id } }),
-        ]);
+        let condosData: Condominium[] = [];
+        let tmplData: InspectionTemplate[] = [];
 
-        const condosData: Condominium[] = await resCondos.json();
-        const tmplData: InspectionTemplate[] = await resTemplates.json();
+        try {
+          const [resCondos, resTemplates] = await Promise.all([
+            fetch('/api/condominiums', { headers: { 'x-company-id': company.id } }),
+            fetch('/api/templates', { headers: { 'x-company-id': company.id } }),
+          ]);
 
-        setCondominiums(condosData);
-        setTemplates(tmplData);
+          if (resCondos.ok) {
+            condosData = await resCondos.json();
+          }
+          if (resTemplates.ok) {
+            tmplData = await resTemplates.json();
+          }
+        } catch (fetchErr) {
+          console.warn('[InspectionForm] Rede indisponível ao carregar dados auxiliares:', fetchErr);
+        }
+
+        setCondominiums(Array.isArray(condosData) ? condosData : []);
+        setTemplates(Array.isArray(tmplData) ? tmplData : []);
 
         if (inspectionIdToEdit) {
           // Editing existing inspection
-          const resInsp = await fetch(`/api/inspections/${inspectionIdToEdit}`, {
-            headers: { 'x-company-id': company.id },
-          });
-          if (resInsp.ok) {
-            const insp: Inspection = await resInsp.json();
-            setInspectionId(insp.id);
-            setSelectedCondoId(insp.condominiumId);
-            setSelectedBlockId(insp.blockId);
-            setSelectedTemplateId(insp.templateId);
-            setDate(insp.date);
-            setInspectorName(insp.inspectorName);
-            setInspectorDoc(insp.inspectorDoc || '');
-            setGeneralNotes(insp.generalNotes || '');
-            setStatus(insp.status === 'CANCELADA' ? 'EM_ANDAMENTO' : insp.status);
-            setGeoLoc(insp.geolocation || null);
-            setEnvironments(insp.environments || []);
-            setTechnicianSignature(insp.technicianSignature);
-            setSyndicSignature(insp.syndicSignature);
-            setSyndicName(insp.syndicName || '');
+          try {
+            const resInsp = await fetch(`/api/inspections/${inspectionIdToEdit}`, {
+              headers: { 'x-company-id': company.id },
+            });
+            if (resInsp.ok) {
+              const insp: Inspection = await resInsp.json();
+              setInspectionId(insp.id);
+              setSelectedCondoId(insp.condominiumId);
+              setSelectedBlockId(insp.blockId);
+              setSelectedTemplateId(insp.templateId);
+              setDate(insp.date);
+              setInspectorName(insp.inspectorName);
+              setInspectorDoc(insp.inspectorDoc || '');
+              setGeneralNotes(insp.generalNotes || '');
+              setStatus(insp.status === 'CANCELADA' ? 'EM_ANDAMENTO' : insp.status);
+              setGeoLoc(insp.geolocation || null);
+              setEnvironments(insp.environments || []);
+              setTechnicianSignature(insp.technicianSignature);
+              setSyndicSignature(insp.syndicSignature);
+              setSyndicName(insp.syndicName || '');
+            }
+          } catch (inspErr) {
+            console.warn('[InspectionForm] Falha ao buscar vistoria remota:', inspErr);
           }
         } else {
           // New Inspection: set defaults

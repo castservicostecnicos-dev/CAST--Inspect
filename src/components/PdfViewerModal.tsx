@@ -130,7 +130,10 @@ export const PdfViewerModal: React.FC<PdfViewerModalProps> = ({
       // Persist to server / Firestore
       await fetch(`/api/inspections/${inspection.id}`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'x-company-id': inspection.companyId || '',
+        },
         body: JSON.stringify(updatedData),
       }).catch(console.error);
 

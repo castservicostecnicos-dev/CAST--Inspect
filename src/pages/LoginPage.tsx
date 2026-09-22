@@ -41,7 +41,11 @@ export const LoginPage: React.FC = () => {
     try {
       await login(email.trim(), password.trim());
     } catch (err: any) {
-      setError(err.message || 'E-mail ou senha incorretos.');
+      if (err?.message === 'Failed to fetch' || err?.message?.includes('fetch')) {
+        setError('Falha na comunicação com o servidor. Verifique sua conexão com a internet ou tente novamente em instantes.');
+      } else {
+        setError(err.message || 'E-mail ou senha incorretos.');
+      }
     } finally {
       setLoading(false);
     }
