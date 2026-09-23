@@ -719,9 +719,9 @@ export const InspectionForm: React.FC<InspectionFormProps> = ({
                       />
                     </div>
 
-                    {/* Miniature horizontal strip of vertical photos */}
+                    {/* Miniature strip of vertical photos (wrapped to prevent lateral scroll) */}
                     {photosCount > 0 && (
-                      <div className="flex items-center gap-2 mt-2 overflow-x-auto py-1 scrollbar-none w-full max-w-full">
+                      <div className="flex flex-wrap items-center gap-2 mt-2 py-1 w-full max-w-full">
                         {item.photos.map((ph, pIdx) => (
                           <div
                             key={ph.id}

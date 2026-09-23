@@ -521,6 +521,46 @@ class JsonDatabase {
 
   public ensureDevUsers(): void {
     if (!this.data.users) this.data.users = [];
+    if (!this.data.companies) this.data.companies = [];
+    if (!this.data.condominiums) this.data.condominiums = [];
+
+    // Ensure Baseline Company 1: CAST Inspect
+    let compCast = this.data.companies.find((c) => c.id === 'emp_cast_01');
+    if (!compCast) {
+      compCast = {
+        id: 'emp_cast_01',
+        name: 'CAST Inspeções & Engenharia Diagnóstica',
+        tradeName: 'CAST Inspect',
+        cnpj: '34.892.110/0001-45',
+        email: 'contato@castinspect.com.br',
+        phone: '(11) 3456-7890',
+        address: 'Av. Paulista, 1500, Sala 1402',
+        city: 'São Paulo',
+        state: 'SP',
+        active: true,
+        createdAt: '2025-01-10T08:00:00.000Z',
+      };
+      this.data.companies.unshift(compCast);
+    }
+
+    // Ensure Baseline Company 2: Alpha Engenharia (for multi-tenant isolation testing)
+    let compAlpha = this.data.companies.find((c) => c.id === 'emp_alpha_02');
+    if (!compAlpha) {
+      compAlpha = {
+        id: 'emp_alpha_02',
+        name: 'Alpha Engenharia & Diagnósticos Prediais',
+        tradeName: 'Alpha Engenharia',
+        cnpj: '19.283.475/0001-88',
+        email: 'contato@alphaengenharia.com.br',
+        phone: '(21) 2233-4455',
+        address: 'Av. Rio Branco, 156, Centro',
+        city: 'Rio de Janeiro',
+        state: 'RJ',
+        active: true,
+        createdAt: '2025-02-01T08:00:00.000Z',
+      };
+      this.data.companies.push(compAlpha);
+    }
 
     const targetDevEmail = 'cast.servicostecnicos@gmail.com';
     let devCast = this.data.users.find(
@@ -573,6 +613,73 @@ class JsonDatabase {
       devTeam.role = 'DEV';
       devTeam.password = 'dev';
       devTeam.active = true;
+    }
+
+    // Ensure Gerente Alpha
+    let userAlpha = this.data.users.find((u) => u.id === 'usr_alpha_01' || u.email === 'gerente@alpha.com.br');
+    if (userAlpha) {
+      userAlpha.companyId = 'emp_alpha_02';
+      userAlpha.companyName = 'Alpha Engenharia & Diagnósticos Prediais';
+      userAlpha.role = 'GERENTE';
+      userAlpha.password = userAlpha.password || '123456';
+      userAlpha.active = true;
+    } else {
+      this.data.users.push({
+        id: 'usr_alpha_01',
+        companyId: 'emp_alpha_02',
+        companyName: 'Alpha Engenharia & Diagnósticos Prediais',
+        name: 'Eng. Rodrigo Alencar',
+        email: 'gerente@alpha.com.br',
+        role: 'GERENTE',
+        docRegistration: 'CREA-RJ 2019481230',
+        phone: '(21) 99876-5432',
+        password: '123456',
+        active: true,
+        createdAt: '2025-02-15T10:00:00.000Z',
+      });
+    }
+
+    // Ensure Técnico Alpha
+    let tecAlpha = this.data.users.find((u) => u.email === 'tecnico@alpha.com.br');
+    if (!tecAlpha) {
+      this.data.users.push({
+        id: 'usr_alpha_tec_01',
+        companyId: 'emp_alpha_02',
+        companyName: 'Alpha Engenharia & Diagnósticos Prediais',
+        name: 'Téc. Bruno Albuquerque',
+        email: 'tecnico@alpha.com.br',
+        role: 'TECNICO',
+        docRegistration: 'CFT-RJ 10928310',
+        phone: '(21) 98877-6655',
+        password: '123456',
+        active: true,
+        createdAt: '2025-02-20T10:00:00.000Z',
+      });
+    }
+
+    // Ensure Condomínio Alpha
+    const hasAlphaCondo = this.data.condominiums?.some((c) => c.companyId === 'emp_alpha_02');
+    if (!hasAlphaCondo) {
+      this.data.condominiums.push({
+        id: 'cond_alpha_01',
+        companyId: 'emp_alpha_02',
+        name: 'Condomínio Edifício Horizon Tower',
+        cnpj: '45.678.901/0001-23',
+        address: 'Av. Atlântica, 1200',
+        neighborhood: 'Copacabana',
+        city: 'Rio de Janeiro',
+        state: 'RJ',
+        postalCode: '22070-000',
+        syndicName: 'Marcos Vinícius Pires',
+        syndicEmail: 'sindico.horizon@gmail.com',
+        syndicPhone: '(21) 97766-5544',
+        active: true,
+        createdAt: '2025-02-18T10:00:00.000Z',
+        blocks: [
+          { id: 'blk_alpha_1', companyId: 'emp_alpha_02', condominiumId: 'cond_alpha_01', name: 'Torre Panorâmica', floorsCount: 22, active: true },
+          { id: 'blk_alpha_2', companyId: 'emp_alpha_02', condominiumId: 'cond_alpha_01', name: 'Áreas de Lazer e Garagem', floorsCount: 3, active: true },
+        ],
+      });
     }
 
     // Fix legacy usr_adm_01 if it was previously set to cast.servicostecnicos@gmail.com

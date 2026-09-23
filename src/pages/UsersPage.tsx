@@ -16,7 +16,7 @@ import { useAuth } from '../context/AuthContext';
 import { User, UserRole } from '../types';
 
 export const UsersPage: React.FC = () => {
-  const { company, canManageUsers } = useAuth();
+  const { user, company, canManageUsers } = useAuth();
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -98,6 +98,7 @@ export const UsersPage: React.FC = () => {
         headers: {
           'Content-Type': 'application/json',
           'x-company-id': company.id,
+          'x-user-role': user?.role || 'GERENTE',
         },
         body: JSON.stringify(payload),
       });
@@ -105,9 +106,12 @@ export const UsersPage: React.FC = () => {
       if (res.ok) {
         setIsModalOpen(false);
         fetchUsers();
+      } else {
+        const err = await res.json();
+        alert(err.error || 'Erro ao salvar usuário.');
       }
     } catch (e) {
-      alert('Erro ao salvar usuário.');
+      alert('Erro de conexão ao salvar usuário.');
     }
   };
 
@@ -168,73 +172,141 @@ export const UsersPage: React.FC = () => {
           <span className="text-xs font-semibold">Carregando usuários...</span>
         </div>
       ) : (
-        <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-xs w-full max-w-full">
-          <div className="overflow-x-auto w-full max-w-full">
-            <table className="w-full text-left border-collapse min-w-[580px]">
-              <thead>
-                <tr className="bg-slate-50 border-b border-slate-200 text-[11px] font-bold text-slate-500 uppercase tracking-wider">
-                  <th className="p-4">Nome / Identificação</th>
-                  <th className="p-4">Perfil (Role)</th>
-                  <th className="p-4">Registro Técnico</th>
-                  <th className="p-4">Status</th>
-                  <th className="p-4 text-right">Ações</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100 text-xs text-slate-700">
-                {users.map((u) => (
-                  <tr key={u.id} className="hover:bg-slate-50/80 transition-colors">
-                    <td className="p-4">
-                      <div className="font-bold text-slate-900">{u.name}</div>
-                      <div className="text-[11px] text-slate-500 flex items-center gap-1 mt-0.5">
-                        <Mail className="w-3 h-3 text-slate-400" />
-                        <span>{u.email}</span>
-                      </div>
-                    </td>
-                    <td className="p-4">
-                      <span
-                        className={`inline-block text-[10px] font-bold px-2.5 py-1 rounded-md border ${getRoleBadge(
-                          u.role
-                        )}`}
-                      >
-                        {u.role}
+        <div className="w-full max-w-full space-y-3">
+          {/* Mobile View: Cards (Fits perfectly within mobile screen without horizontal scroll) */}
+          <div className="md:hidden space-y-3">
+            {users.map((u) => (
+              <div
+                key={u.id}
+                className="bg-white border border-slate-200 rounded-2xl p-4 shadow-xs space-y-3"
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0 flex-1">
+                    <div className="font-bold text-slate-900 text-sm truncate">{u.name}</div>
+                    <div className="text-xs text-slate-500 font-mono break-all flex items-center gap-1 mt-0.5">
+                      <Mail className="w-3 h-3 text-slate-400 shrink-0" />
+                      <span className="truncate">{u.email}</span>
+                    </div>
+                  </div>
+                  <span
+                    className={`inline-block text-[10px] font-bold px-2 py-0.5 rounded-md border shrink-0 ${getRoleBadge(
+                      u.role
+                    )}`}
+                  >
+                    {u.role}
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-2 gap-2 text-[11px] text-slate-600 pt-2 border-t border-slate-100">
+                  <div>
+                    <span className="text-slate-400 block text-[10px]">Registro Técnico:</span>
+                    {u.docRegistration ? (
+                      <span className="font-semibold text-blue-700 bg-blue-50 px-1.5 py-0.5 rounded border border-blue-100 text-[10px]">
+                        {u.docRegistration}
                       </span>
-                    </td>
-                    <td className="p-4">
-                      {u.docRegistration ? (
-                        <span className="font-semibold text-blue-700 bg-blue-50 px-2 py-0.5 rounded border border-blue-100">
-                          {u.docRegistration}
-                        </span>
-                      ) : (
-                        <span className="text-slate-400">&mdash;</span>
-                      )}
-                    </td>
-                    <td className="p-4">
-                      <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-700">
-                        <CheckCircle2 className="w-3.5 h-3.5" /> Ativo
-                      </span>
-                    </td>
-                    <td className="p-4 text-right">
-                      {canManageUsers && (
-                        <div className="flex items-center justify-end gap-1">
-                          <button
-                            onClick={() => openEditModal(u)}
-                            className="p-1.5 rounded-lg text-slate-500 hover:text-blue-600 hover:bg-blue-50 transition-colors"
-                          >
-                            <Edit2 className="w-3.5 h-3.5" />
-                          </button>
-                          <button
-                            onClick={() => handleDelete(u.id)}
-                            className="p-1.5 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 transition-colors"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
-                        </div>
-                      )}
-                    </td>
+                    ) : (
+                      <span className="text-slate-400">—</span>
+                    )}
+                  </div>
+                  <div>
+                    <span className="text-slate-400 block text-[10px]">Status:</span>
+                    <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-700">
+                      <CheckCircle2 className="w-3.5 h-3.5" /> Ativo
+                    </span>
+                  </div>
+                </div>
+
+                {canManageUsers && (
+                  <div className="pt-2 border-t border-slate-100 flex items-center justify-end gap-2">
+                    <button
+                      onClick={() => openEditModal(u)}
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 text-slate-700 hover:bg-slate-50 text-xs font-semibold transition-colors"
+                    >
+                      <Edit2 className="w-3.5 h-3.5 text-blue-600" />
+                      <span>Editar</span>
+                    </button>
+                    <button
+                      onClick={() => handleDelete(u.id)}
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-red-200 text-red-600 hover:bg-red-50 text-xs font-semibold transition-colors"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                      <span>Excluir</span>
+                    </button>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+
+          {/* Desktop View: Table */}
+          <div className="hidden md:block bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-xs w-full max-w-full">
+            <div className="overflow-x-auto w-full max-w-full">
+              <table className="w-full text-left border-collapse">
+                <thead>
+                  <tr className="bg-slate-50 border-b border-slate-200 text-[11px] font-bold text-slate-500 uppercase tracking-wider">
+                    <th className="p-4">Nome / Identificação</th>
+                    <th className="p-4">Perfil (Role)</th>
+                    <th className="p-4">Registro Técnico</th>
+                    <th className="p-4">Status</th>
+                    <th className="p-4 text-right">Ações</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody className="divide-y divide-slate-100 text-xs text-slate-700">
+                  {users.map((u) => (
+                    <tr key={u.id} className="hover:bg-slate-50/80 transition-colors">
+                      <td className="p-4">
+                        <div className="font-bold text-slate-900">{u.name}</div>
+                        <div className="text-[11px] text-slate-500 flex items-center gap-1 mt-0.5">
+                          <Mail className="w-3 h-3 text-slate-400" />
+                          <span>{u.email}</span>
+                        </div>
+                      </td>
+                      <td className="p-4">
+                        <span
+                          className={`inline-block text-[10px] font-bold px-2.5 py-1 rounded-md border ${getRoleBadge(
+                            u.role
+                          )}`}
+                        >
+                          {u.role}
+                        </span>
+                      </td>
+                      <td className="p-4">
+                        {u.docRegistration ? (
+                          <span className="font-semibold text-blue-700 bg-blue-50 px-2 py-0.5 rounded border border-blue-100">
+                            {u.docRegistration}
+                          </span>
+                        ) : (
+                          <span className="text-slate-400">&mdash;</span>
+                        )}
+                      </td>
+                      <td className="p-4">
+                        <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-700">
+                          <CheckCircle2 className="w-3.5 h-3.5" /> Ativo
+                        </span>
+                      </td>
+                      <td className="p-4 text-right">
+                        {canManageUsers && (
+                          <div className="flex items-center justify-end gap-1">
+                            <button
+                              onClick={() => openEditModal(u)}
+                              className="p-1.5 rounded-lg text-slate-500 hover:text-blue-600 hover:bg-blue-50 transition-colors"
+                            >
+                              <Edit2 className="w-3.5 h-3.5" />
+                            </button>
+                            <button
+                              onClick={() => handleDelete(u.id)}
+                              className="p-1.5 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 transition-colors"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
         </div>
       )}

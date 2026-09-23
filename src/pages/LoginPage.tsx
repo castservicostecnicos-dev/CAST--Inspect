@@ -122,38 +122,6 @@ export const LoginPage: React.FC = () => {
               <span>{loading ? 'Entrando...' : 'Entrar'}</span>
               <ArrowRight className="w-4 h-4" />
             </button>
-
-            {/* Quick Access Dev Helper */}
-            <div className="pt-2 border-t border-slate-800/80 mt-3 flex items-center justify-between text-[11px]">
-              <span className="text-slate-400 font-medium">Acesso Dev:</span>
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setEmail('ale11062@gmail.com');
-                    setPassword('Cast@2468');
-                    setError('');
-                  }}
-                  className="text-cyan-400 hover:text-cyan-300 font-semibold underline underline-offset-2 transition-colors cursor-pointer"
-                  title="Carlos Alessandro (ale11062@gmail.com)"
-                >
-                  Carlos Alessandro
-                </button>
-                <span className="text-slate-600">|</span>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setEmail('cast.servicostecnicos@gmail.com');
-                    setPassword('Cast@2468');
-                    setError('');
-                  }}
-                  className="text-blue-400 hover:text-blue-300 font-semibold underline underline-offset-2 transition-colors cursor-pointer"
-                  title="Dev Carlos (cast.servicostecnicos@gmail.com)"
-                >
-                  Dev Carlos
-                </button>
-              </div>
-            </div>
           </form>
         </div>
 

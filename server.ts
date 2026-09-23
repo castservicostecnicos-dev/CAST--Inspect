@@ -125,10 +125,17 @@ async function startServer() {
     });
   });
 
-  // Companies Management
+  // Companies Management (Multi-tenant scoped: non-DEV users only see their own company)
   app.get('/api/companies', (req, res) => {
-    const companies = db.getCompanies();
-    res.json(companies);
+    const userRole = req.headers['x-user-role'] as string;
+    const headerCompany = req.headers['x-company-id'] as string;
+    const all = db.getCompanies();
+
+    if (userRole && userRole !== 'DEV' && headerCompany) {
+      const filtered = all.filter((c) => c.id === headerCompany);
+      return res.json(filtered.length > 0 ? filtered : all.slice(0, 1));
+    }
+    res.json(all);
   });
 
   app.get('/api/companies/:id', (req, res) => {
@@ -148,8 +155,30 @@ async function startServer() {
       active: data.active ?? true,
       createdAt: new Date().toISOString(),
     };
+    delete (newCompany as any).manager;
     db.saveCompany(newCompany);
-    res.status(201).json(newCompany);
+
+    // Cadastrar o Gerente junto ao cadastro da empresa, conforme regra do sistema
+    let createdManager = null;
+    if (data.manager && data.manager.name && data.manager.email) {
+      const managerUser = {
+        id: `usr_${Date.now()}_mgr`,
+        companyId: newCompany.id,
+        companyName: newCompany.tradeName || newCompany.name,
+        name: data.manager.name.trim(),
+        email: data.manager.email.trim(),
+        password: data.manager.password?.trim() || 'Cast#' + Math.floor(1000 + Math.random() * 9000),
+        role: 'GERENTE' as const,
+        phone: data.manager.phone?.trim() || undefined,
+        docRegistration: data.manager.docRegistration?.trim() || undefined,
+        active: true,
+        createdAt: new Date().toISOString(),
+      };
+      db.saveUser(managerUser);
+      createdManager = managerUser;
+    }
+
+    res.status(201).json({ ...newCompany, manager: createdManager });
   });
 
   app.put('/api/companies/:id', (req, res) => {
@@ -243,15 +272,51 @@ async function startServer() {
 
   app.post('/api/users', (req, res) => {
     const companyId = getCompanyId(req);
+    const userRole = (req.headers['x-user-role'] as string) || '';
     const data = req.body;
     if (!data.name || !data.email || !data.role) {
       return res.status(400).json({ error: 'Nome, e-mail e perfil são obrigatórios.' });
     }
 
+    const targetCompanyId = data.companyId || companyId;
+    const existingUsers = db.getUsers(targetCompanyId);
+    const existingManager = existingUsers.find((u) => u.role === 'GERENTE');
+
+    // Regra: O DEV NÃO pode incluir funcionários na empresa, fora o gerente (se ainda não existir).
+    // Os demais funcionários só podem ser cadastrados pelo Gerente.
+    if (userRole === 'DEV') {
+      if (data.role !== 'GERENTE') {
+        return res.status(403).json({
+          error: 'O Desenvolvedor não pode incluir funcionários na empresa. Os funcionários (Supervisores, Técnicos e Síndicos) só podem ser cadastrados pelo Gerente da empresa.',
+        });
+      }
+
+      if (existingManager) {
+        return res.status(400).json({
+          error: `A empresa já possui um Gerente cadastrado (${existingManager.name} - ${existingManager.email}). Os demais usuários devem ser cadastrados pelo próprio Gerente da empresa.`,
+        });
+      }
+    } else if (userRole && userRole !== 'GERENTE') {
+      // Se não for DEV nem GERENTE, bloqueia criação de usuários
+      return res.status(403).json({
+        error: 'Apenas o Gerente tem permissão para cadastrar funcionários nesta empresa.',
+      });
+    }
+
+    // Não permitir cadastro de perfil DEV através da API pública de usuários
+    if (data.role === 'DEV') {
+      return res.status(403).json({
+        error: 'Não é permitido cadastrar perfil DEV.',
+      });
+    }
+
+    const targetCompany = db.getCompanyById(targetCompanyId);
+
     const newUser = {
       ...data,
       id: data.id || `usr_${Date.now()}`,
-      companyId: data.companyId || companyId,
+      companyId: targetCompanyId,
+      companyName: targetCompany?.tradeName || targetCompany?.name || data.companyName,
       active: data.active ?? true,
       createdAt: new Date().toISOString(),
     };
@@ -262,6 +327,13 @@ async function startServer() {
   app.put('/api/users/:id', (req, res) => {
     const user = db.getUserById(req.params.id);
     if (!user) return res.status(404).json({ error: 'Usuário não encontrado.' });
+    const userRole = (req.headers['x-user-role'] as string) || '';
+
+    // Se usuário editando não for DEV nem GERENTE, bloqueia
+    if (userRole && userRole !== 'DEV' && userRole !== 'GERENTE') {
+      return res.status(403).json({ error: 'Permissão negada para alterar usuários.' });
+    }
+
     const updated = { ...user, ...req.body, id: req.params.id };
     db.saveUser(updated);
     res.json(updated);

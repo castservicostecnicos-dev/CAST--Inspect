@@ -7,30 +7,34 @@
 
   html {
     width: 100%;
-    max-width: 100%;
+    max-width: 100vw;
     min-height: 100%;
     overflow-x: hidden;
     -webkit-text-size-adjust: 100%;
+    position: relative;
   }
 
   body {
     width: 100%;
-    max-width: 100%;
+    max-width: 100vw;
     min-height: 100%;
     overflow-x: hidden;
     margin: 0;
     padding: 0;
     -webkit-font-smoothing: antialiased;
     -webkit-overflow-scrolling: touch;
+    overflow-wrap: break-word;
+    position: relative;
   }
 
   #root {
     width: 100%;
-    max-width: 100%;
+    max-width: 100vw;
     min-height: 100vh;
     display: flex;
     flex-direction: column;
     overflow-x: hidden;
+    position: relative;
   }
 }
 

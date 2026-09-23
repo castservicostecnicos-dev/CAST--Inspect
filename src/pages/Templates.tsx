@@ -164,23 +164,23 @@ export const Templates: React.FC<TemplatesProps> = ({ onNavigate }) => {
                 {/* Accordion Header */}
                 <div
                   onClick={() => toggleExpand(tmpl.id)}
-                  className="p-4 sm:p-5 flex items-center justify-between cursor-pointer hover:bg-slate-50 transition-colors"
+                  className="p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 cursor-pointer hover:bg-slate-50 transition-colors"
                 >
-                  <div className="flex items-center gap-3">
-                    <div className="w-9 h-9 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="w-9 h-9 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center shrink-0">
                       <FileCheck2 className="w-5 h-5" />
                     </div>
-                    <div>
-                      <h3 className="text-sm sm:text-base font-bold text-slate-900">
+                    <div className="min-w-0">
+                      <h3 className="text-sm sm:text-base font-bold text-slate-900 truncate">
                         {tmpl.title}
                       </h3>
-                      <p className="text-xs text-slate-500 mt-0.5">
+                      <p className="text-xs text-slate-500 mt-0.5 break-words">
                         {tmpl.description}
                       </p>
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-3">
+                  <div className="flex items-center justify-between sm:justify-end gap-3 shrink-0 pt-2 sm:pt-0 border-t sm:border-t-0 border-slate-100">
                     <span className="text-xs font-semibold bg-slate-100 text-slate-700 px-2.5 py-1 rounded-lg">
                       {tmpl.environments.length} Ambientes &bull; {totalItems} Itens
                     </span>

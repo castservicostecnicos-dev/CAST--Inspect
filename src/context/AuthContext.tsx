@@ -49,13 +49,26 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     return (localStorage.getItem('cast_inspect_orig_role') as UserRole) || null;
   });
 
-  // Background refresh of available companies and session validation
+  // Background refresh of available companies and session validation (Multi-tenant scoped)
   useEffect(() => {
     let isMounted = true;
 
     async function init() {
+      // Non-DEV users ONLY have access to their own assigned company
+      if (user && user.role !== 'DEV') {
+        if (company && isMounted) {
+          setAvailableCompanies([company]);
+        }
+        return;
+      }
+
       try {
-        const resComp = await fetch('/api/companies');
+        const resComp = await fetch('/api/companies', {
+          headers: {
+            ...(company ? { 'x-company-id': company.id } : {}),
+            ...(user ? { 'x-user-role': user.role } : {}),
+          },
+        });
         if (resComp.ok && isMounted) {
           const comps = await resComp.json();
           if (Array.isArray(comps)) {
@@ -72,7 +85,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     return () => {
       isMounted = false;
     };
-  }, []);
+  }, [user?.role, company?.id]);
 
   const login = async (email: string, password?: string): Promise<boolean> => {
     try {
@@ -92,6 +105,23 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       setCompany(data.company);
       setToken(data.token);
       setOriginalRole(data.user.role);
+
+      // Strict isolation: non-DEV users are strictly limited to their own company
+      if (data.user.role === 'DEV') {
+        try {
+          const resComp = await fetch('/api/companies', {
+            headers: { 'x-user-role': 'DEV' },
+          });
+          if (resComp.ok) {
+            const comps = await resComp.json();
+            setAvailableCompanies(comps);
+          }
+        } catch {
+          setAvailableCompanies([data.company]);
+        }
+      } else {
+        setAvailableCompanies([data.company]);
+      }
 
       localStorage.setItem('cast_inspect_user', JSON.stringify(data.user));
       localStorage.setItem('cast_inspect_company', JSON.stringify(data.company));
@@ -171,8 +201,13 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     localStorage.setItem('cast_inspect_user', JSON.stringify(updated));
   };
 
-  // Switch company (demonstrating multi-empresa data isolation)
+  // Switch company (demonstrating multi-empresa data isolation - strictly DEV)
   const switchCompany = (newCompanyId: string) => {
+    if (originalRole !== 'DEV' && user?.role !== 'DEV') {
+      console.warn('Operação bloqueada: Apenas o perfil DEV possui permissão para alternar entre empresas.');
+      return;
+    }
+
     const targetComp = availableCompanies.find((c) => c.id === newCompanyId);
     if (!targetComp) return;
 
@@ -195,7 +230,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   // A alternância rápida de perfis só é permitida se o acesso original foi autenticado como DEV
   const canSwitchRoles = originalRole === 'DEV';
   const canManageUsers = user?.role === 'GERENTE';
-  const canManageCompanies = user?.role === 'GERENTE' || user?.role === 'DEV';
+  const canManageCompanies = isDev;
   const canManageCondos = user?.role === 'GERENTE' || user?.role === 'SUPERVISOR';
   const canExecuteInspection = user?.role === 'TECNICO' || user?.role === 'SUPERVISOR' || user?.role === 'GERENTE';
   const canApproveOrSupervise = user?.role === 'SUPERVISOR' || user?.role === 'GERENTE';

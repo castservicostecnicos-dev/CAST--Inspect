@@ -28,8 +28,14 @@ import {
   Wifi,
   WifiOff,
   Smartphone,
+  Users,
+  UserPlus,
+  ArrowLeft,
+  ChevronRight,
+  UserCheck,
+  Shield,
 } from 'lucide-react';
-import { Company, User } from '../types';
+import { Company, User, UserRole } from '../types';
 import { FirestoreService } from '../lib/firestoreSync';
 import {
   countPendingInspectionsIDB,
@@ -43,7 +49,8 @@ import {
 } from '../lib/syncEngine';
 
 export const DevDashboard: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<'companies' | 'passwords' | 'database'>('companies');
+  const [activeTab, setActiveTab] = useState<'companies' | 'database'>('companies');
+  const [selectedCompanyId, setSelectedCompanyId] = useState<string | null>(null);
 
   // --- Database Maintenance State ---
   const [clearingDb, setClearingDb] = useState(false);
@@ -102,6 +109,13 @@ export const DevDashboard: React.FC = () => {
   const [city, setCity] = useState('');
   const [state, setState] = useState('');
 
+  // Manager (Gerente) fields for new company registration
+  const [mgrName, setMgrName] = useState('');
+  const [mgrEmail, setMgrEmail] = useState('');
+  const [mgrPassword, setMgrPassword] = useState('');
+  const [mgrPhone, setMgrPhone] = useState('');
+  const [mgrDoc, setMgrDoc] = useState('');
+
   // --- Password Recovery State ---
   const [users, setUsers] = useState<User[]>([]);
   const [loadingUsers, setLoadingUsers] = useState(false);
@@ -110,6 +124,18 @@ export const DevDashboard: React.FC = () => {
   const [newPassword, setNewPassword] = useState('');
   const [resetSuccessMessage, setResetSuccessMessage] = useState('');
   const [copied, setCopied] = useState(false);
+
+  // --- User Management within Selected Company ---
+  const [isUserModalOpen, setIsUserModalOpen] = useState(false);
+  const [editingUser, setEditingUser] = useState<User | null>(null);
+  const [userName, setUserName] = useState('');
+  const [userEmail, setUserEmail] = useState('');
+  const [userPassword, setUserPassword] = useState('');
+  const [userRole, setUserRole] = useState<UserRole>('GERENTE');
+  const [userDoc, setUserDoc] = useState('');
+  const [userPhone, setUserPhone] = useState('');
+  const [userActive, setUserActive] = useState(true);
+  const [savingUser, setSavingUser] = useState(false);
 
   // Fetch companies
   const fetchCompanies = async () => {
@@ -150,6 +176,7 @@ export const DevDashboard: React.FC = () => {
 
   // --- Company Actions ---
   const handleOpenCreateModal = () => {
+    setEditingCompany(null);
     setName('');
     setTradeName('');
     setCnpj('');
@@ -157,7 +184,12 @@ export const DevDashboard: React.FC = () => {
     setPhone('');
     setAddress('');
     setCity('');
-    setState('');
+    setState('SP');
+    setMgrName('');
+    setMgrEmail('');
+    setMgrPassword('Cast#' + Math.floor(1000 + Math.random() * 9000));
+    setMgrPhone('');
+    setMgrDoc('');
     setIsCreateModalOpen(true);
   };
 
@@ -208,7 +240,12 @@ export const DevDashboard: React.FC = () => {
         alert('Erro de conexão ao atualizar empresa.');
       }
     } else {
-      // Create
+      // Create company + Gerente obrigatório
+      if (!mgrName.trim() || !mgrEmail.trim()) {
+        alert('O cadastro do Gerente (Nome e E-mail) é obrigatório junto ao cadastro da empresa.');
+        return;
+      }
+
       try {
         const payload = {
           id: `emp_${Date.now()}`,
@@ -221,6 +258,13 @@ export const DevDashboard: React.FC = () => {
           city: city.trim() || 'São Paulo',
           state: state.trim() || 'SP',
           active: true,
+          manager: {
+            name: mgrName.trim(),
+            email: mgrEmail.trim(),
+            password: mgrPassword.trim() || 'Cast#' + Math.floor(1000 + Math.random() * 9000),
+            phone: mgrPhone.trim() || undefined,
+            docRegistration: mgrDoc.trim() || undefined,
+          },
         };
 
         const res = await fetch('/api/companies', {
@@ -232,8 +276,10 @@ export const DevDashboard: React.FC = () => {
         if (res.ok) {
           setIsCreateModalOpen(false);
           await fetchCompanies();
+          await fetchUsers();
         } else {
-          alert('Erro ao cadastrar empresa.');
+          const err = await res.json().catch(() => ({}));
+          alert(err.error || 'Erro ao cadastrar empresa.');
         }
       } catch (err) {
         alert('Erro de conexão ao cadastrar empresa.');
@@ -323,6 +369,99 @@ export const DevDashboard: React.FC = () => {
     setTimeout(() => setCopied(false), 2000);
   };
 
+  const selectedCompany = selectedCompanyId ? companies.find((c) => c.id === selectedCompanyId) || null : null;
+  const companyUsers = selectedCompanyId ? users.filter((u) => u.companyId === selectedCompanyId) : [];
+  const selectedCompanyHasManager = companyUsers.some((u) => u.role === 'GERENTE');
+  const filteredCompanyUsers = companyUsers.filter((u) =>
+    u.name.toLowerCase().includes(searchUser.toLowerCase()) ||
+    u.email.toLowerCase().includes(searchUser.toLowerCase()) ||
+    u.role.toLowerCase().includes(searchUser.toLowerCase()) ||
+    (u.docRegistration && u.docRegistration.toLowerCase().includes(searchUser.toLowerCase()))
+  );
+
+  const handleOpenNewUser = (companyId: string) => {
+    const compUsers = users.filter((u) => u.companyId === companyId);
+    const hasManager = compUsers.some((u) => u.role === 'GERENTE');
+    if (hasManager) {
+      alert('Esta empresa já possui um Gerente cadastrado. O Desenvolvedor não tem permissão para cadastrar outros funcionários. Os demais funcionários devem ser cadastrados pelo Gerente da empresa.');
+      return;
+    }
+    setEditingUser(null);
+    setUserName('');
+    setUserEmail('');
+    setUserPassword('Cast#' + Math.floor(1000 + Math.random() * 9000));
+    setUserRole('GERENTE');
+    setUserDoc('');
+    setUserPhone('');
+    setUserActive(true);
+    setIsUserModalOpen(true);
+  };
+
+  const handleOpenEditUser = (u: User) => {
+    setEditingUser(u);
+    setUserName(u.name);
+    setUserEmail(u.email);
+    setUserPassword('');
+    setUserRole(u.role);
+    setUserDoc(u.docRegistration || '');
+    setUserPhone(u.phone || '');
+    setUserActive(u.active ?? true);
+    setIsUserModalOpen(true);
+  };
+
+  const handleSaveUser = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!userName.trim() || !userEmail.trim()) return;
+    if (!selectedCompanyId) return;
+
+    if (!editingUser && userRole !== 'GERENTE') {
+      alert('O Desenvolvedor só pode cadastrar o perfil GERENTE. Os demais colaboradores devem ser cadastrados pelo Gerente da empresa.');
+      return;
+    }
+
+    setSavingUser(true);
+    try {
+      const payload: any = {
+        name: userName.trim(),
+        email: userEmail.trim(),
+        role: editingUser ? editingUser.role : 'GERENTE',
+        companyId: selectedCompanyId,
+        docRegistration: userDoc.trim() || undefined,
+        phone: userPhone.trim() || undefined,
+        active: userActive,
+      };
+      if (userPassword.trim()) {
+        payload.password = userPassword.trim();
+      }
+
+      const url = editingUser ? `/api/users/${editingUser.id}` : '/api/users';
+      const method = editingUser ? 'PUT' : 'POST';
+
+      const res = await fetch(url, {
+        method,
+        headers: {
+          'Content-Type': 'application/json',
+          'x-company-id': selectedCompanyId,
+          'x-user-role': 'DEV',
+        },
+        body: JSON.stringify(payload),
+      });
+
+      if (res.ok) {
+        setIsUserModalOpen(false);
+        setEditingUser(null);
+        await fetchUsers();
+      } else {
+        const err = await res.json().catch(() => ({}));
+        alert(err.error || 'Erro ao salvar usuário.');
+      }
+    } catch (err) {
+      alert('Erro de conexão ao salvar usuário.');
+    } finally {
+      setSavingUser(false);
+    }
+  };
+
   const filteredCompanies = companies.filter((c) =>
     c.name.toLowerCase().includes(searchCompany.toLowerCase()) ||
     c.tradeName?.toLowerCase().includes(searchCompany.toLowerCase()) ||
@@ -347,294 +486,572 @@ export const DevDashboard: React.FC = () => {
               Painel do Desenvolvedor
             </h1>
             <p className="text-xs text-slate-400 mt-0.5">
-              Gestão de empresas e redefinição de senhas
+              Gestão de empresas, isolamento multi-tenant e usuários cadastrados
             </p>
           </div>
 
-          <div className="flex items-center gap-2 bg-slate-800/80 border border-slate-700/80 p-1.5 rounded-2xl shrink-0 overflow-x-auto max-w-full">
+          <div className="grid grid-cols-2 sm:flex sm:items-center gap-1.5 sm:gap-2 bg-slate-800/80 border border-slate-700/80 p-1.5 rounded-2xl w-full sm:w-auto">
             <button
               onClick={() => setActiveTab('companies')}
-              className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-semibold whitespace-nowrap transition-all ${
+              className={`flex items-center justify-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 rounded-xl text-xs font-semibold text-center transition-all ${
                 activeTab === 'companies'
-                  ? 'bg-cyan-500 text-slate-950 shadow-md shadow-cyan-500/20'
+                  ? 'bg-cyan-500 text-slate-950 shadow-md shadow-cyan-500/20 font-bold'
                   : 'text-slate-300 hover:text-white'
               }`}
             >
-              <Building2 className="w-4 h-4" />
-              <span>Empresas ({companies.length})</span>
-            </button>
-
-            <button
-              onClick={() => setActiveTab('passwords')}
-              className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-semibold whitespace-nowrap transition-all ${
-                activeTab === 'passwords'
-                  ? 'bg-cyan-500 text-slate-950 shadow-md shadow-cyan-500/20'
-                  : 'text-slate-300 hover:text-white'
-              }`}
-            >
-              <KeyRound className="w-4 h-4" />
-              <span>Senhas ({users.length})</span>
+              <Building2 className="w-4 h-4 shrink-0" />
+              <span className="truncate">Empresas ({companies.length})</span>
             </button>
 
             <button
               onClick={() => setActiveTab('database')}
-              className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-semibold whitespace-nowrap transition-all ${
+              className={`flex items-center justify-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 rounded-xl text-xs font-semibold text-center transition-all ${
                 activeTab === 'database'
-                  ? 'bg-cyan-500 text-slate-950 shadow-md shadow-cyan-500/20'
+                  ? 'bg-cyan-500 text-slate-950 shadow-md shadow-cyan-500/20 font-bold'
                   : 'text-slate-300 hover:text-white'
               }`}
             >
-              <Database className="w-4 h-4" />
-              <span>Banco de Dados & Firebase</span>
+              <Database className="w-4 h-4 shrink-0" />
+              <span className="truncate">Banco & Firebase</span>
             </button>
           </div>
         </div>
       </div>
 
       {/* ========================================================================= */}
-      {/* TAB 1: GESTÃO DE EMPRESAS                                                 */}
+      {/* TAB 1: ABA EMPRESAS (REFORMULADA COM ISOLAMENTO E CARREGAMENTO DE USUÁRIOS) */}
       {/* ========================================================================= */}
       {activeTab === 'companies' && (
         <div className="space-y-4">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white p-4 rounded-2xl border border-slate-200">
-            <div className="relative flex-1 max-w-md">
-              <Search className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
-              <input
-                type="text"
-                value={searchCompany}
-                onChange={(e) => setSearchCompany(e.target.value)}
-                placeholder="Buscar empresa por razão social, nome fantasia ou CNPJ..."
-                className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-9 pr-3 py-2 text-xs font-medium focus:ring-2 focus:ring-cyan-500 outline-none"
-              />
-            </div>
+          {/* SE UMA EMPRESA ESTIVER SELECIONADA: DRILL-DOWN DOS USUÁRIOS DESSA EMPRESA */}
+          {selectedCompanyId && selectedCompany ? (
+            <div className="space-y-5 animate-fadeIn">
+              {/* Barra de Navegação Superior e Alternância Direta */}
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white p-4 rounded-2xl border border-slate-200 shadow-xs">
+                <div className="flex items-center gap-3 flex-wrap">
+                  <button
+                    onClick={() => {
+                      setSelectedCompanyId(null);
+                      setSearchUser('');
+                    }}
+                    className="flex items-center gap-1.5 px-3.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-bold rounded-xl transition-colors shrink-0"
+                  >
+                    <ArrowLeft className="w-4 h-4 text-slate-600" />
+                    <span>← Voltar para Lista de Empresas</span>
+                  </button>
 
-            <div className="flex items-center gap-2">
-              <button
-                onClick={fetchCompanies}
-                className="p-2 border border-slate-200 hover:bg-slate-50 rounded-xl text-slate-600 transition-colors"
-                title="Atualizar lista"
-              >
-                <RefreshCw className={`w-4 h-4 ${loadingCompanies ? 'animate-spin' : ''}`} />
-              </button>
+                  <div className="h-5 w-px bg-slate-200 hidden sm:block" />
 
-              <button
-                onClick={handleOpenCreateModal}
-                className="flex items-center gap-2 bg-cyan-600 hover:bg-cyan-500 text-white text-xs sm:text-sm font-bold px-4 py-2 rounded-xl shadow-md shadow-cyan-600/20 transition-all active:scale-95 shrink-0"
-              >
-                <Plus className="w-4 h-4" />
-                <span>Criar Nova Empresa</span>
-              </button>
-            </div>
-          </div>
-
-          {/* Companies Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {filteredCompanies.map((c) => (
-              <div
-                key={c.id}
-                className={`bg-white border rounded-2xl p-5 shadow-xs flex flex-col justify-between transition-all ${
-                  c.active
-                    ? 'border-slate-200 hover:border-cyan-400'
-                    : 'border-rose-200 bg-rose-50/20 opacity-80'
-                }`}
-              >
-                <div>
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="flex items-center gap-3">
-                      <div
-                        className={`w-11 h-11 rounded-xl flex items-center justify-center font-bold text-sm ${
-                          c.active ? 'bg-cyan-100 text-cyan-800' : 'bg-rose-100 text-rose-800'
-                        }`}
-                      >
-                        <Building2 className="w-6 h-6" />
-                      </div>
-                      <div>
-                        <div className="flex items-center gap-2">
-                          <h3 className="text-base font-bold text-slate-900">
-                            {c.tradeName || c.name}
-                          </h3>
-                          {c.active ? (
-                            <span className="text-[10px] font-bold bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full flex items-center gap-1">
-                              <CheckCircle2 className="w-3 h-3" /> Ativa
-                            </span>
-                          ) : (
-                            <span className="text-[10px] font-bold bg-rose-100 text-rose-800 px-2 py-0.5 rounded-full flex items-center gap-1">
-                              <Power className="w-3 h-3" /> Desativada
-                            </span>
-                          )}
-                        </div>
-                        <p className="text-xs text-slate-500 mt-0.5">{c.name}</p>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="mt-4 text-xs text-slate-600 space-y-1.5 pt-3 border-t border-slate-100">
-                    <div className="flex items-center gap-2">
-                      <span className="font-semibold text-slate-700">CNPJ:</span>
-                      <span className="font-mono text-slate-900 font-medium">{c.cnpj}</span>
-                    </div>
-                    {c.email && (
-                      <div className="flex items-center gap-2 text-slate-500">
-                        <Mail className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                        <span>{c.email}</span>
-                      </div>
-                    )}
-                    {c.phone && (
-                      <div className="flex items-center gap-2 text-slate-500">
-                        <Phone className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                        <span>{c.phone}</span>
-                      </div>
-                    )}
-                    {c.address && (
-                      <div className="flex items-center gap-2 text-slate-500">
-                        <MapPin className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                        <span>{c.address} - {c.city}/{c.state}</span>
-                      </div>
-                    )}
+                  <div className="flex items-center gap-2 text-xs">
+                    <span className="text-slate-500 font-medium hidden md:inline">Alternar empresa:</span>
+                    <select
+                      value={selectedCompany.id}
+                      onChange={(e) => {
+                        setSelectedCompanyId(e.target.value);
+                        setSearchUser('');
+                      }}
+                      className="bg-slate-50 border border-slate-200 rounded-xl px-3 py-1.5 text-xs font-bold text-slate-900 focus:ring-2 focus:ring-cyan-500 outline-none"
+                    >
+                      {companies.map((c) => (
+                        <option key={c.id} value={c.id}>
+                          {c.tradeName || c.name} ({users.filter((u) => u.companyId === c.id).length} usuários)
+                        </option>
+                      ))}
+                    </select>
                   </div>
                 </div>
 
-                {/* Dev Actions Bar */}
-                <div className="mt-5 pt-3 border-t border-slate-100 flex items-center justify-between gap-2">
-                  <span className="text-[11px] text-slate-400 font-mono">
-                    ID: {c.id}
-                  </span>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => handleOpenEditModal(selectedCompany)}
+                    className="flex items-center gap-1.5 text-xs font-semibold px-3 py-2 rounded-xl border border-slate-200 hover:bg-slate-50 text-slate-700 transition-colors"
+                  >
+                    <Edit2 className="w-3.5 h-3.5 text-slate-500" />
+                    <span>Editar Empresa</span>
+                  </button>
 
-                  <div className="flex items-center gap-1.5">
-                    {/* Toggle Active/Inactive */}
-                    <button
-                      onClick={() => handleToggleStatus(c)}
-                      className={`flex items-center gap-1 text-xs font-semibold px-2.5 py-1.5 rounded-xl border transition-colors ${
-                        c.active
-                          ? 'border-amber-200 text-amber-700 bg-amber-50 hover:bg-amber-100'
-                          : 'border-emerald-200 text-emerald-700 bg-emerald-50 hover:bg-emerald-100'
-                      }`}
-                      title={c.active ? 'Desativar empresa' : 'Ativar empresa'}
-                    >
-                      <Power className="w-3.5 h-3.5" />
-                      <span>{c.active ? 'Desativar' : 'Ativar'}</span>
-                    </button>
+                  <button
+                    onClick={() => handleOpenNewUser(selectedCompany.id)}
+                    className="flex items-center gap-1.5 bg-cyan-600 hover:bg-cyan-500 text-white text-xs font-bold px-3.5 py-2 rounded-xl shadow-md shadow-cyan-600/20 transition-all active:scale-95 shrink-0"
+                  >
+                    <UserPlus className="w-4 h-4" />
+                    <span>+ Adicionar Usuário nesta Empresa</span>
+                  </button>
+                </div>
+              </div>
 
-                    {/* Edit */}
-                    <button
-                      onClick={() => handleOpenEditModal(c)}
-                      className="flex items-center gap-1 text-xs font-semibold px-2.5 py-1.5 rounded-xl border border-slate-200 text-slate-700 bg-slate-50 hover:bg-slate-100 transition-colors"
-                      title="Editar dados da empresa"
-                    >
-                      <Edit2 className="w-3.5 h-3.5" />
-                      <span>Editar</span>
-                    </button>
+              {/* Resumo da Empresa Selecionada */}
+              <div className="bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 text-white p-5 sm:p-6 rounded-3xl border border-slate-800 shadow-md flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div className="flex items-start gap-4">
+                  <div className="w-12 h-12 rounded-2xl bg-cyan-500/20 text-cyan-400 flex items-center justify-center shrink-0 border border-cyan-500/30">
+                    <Building2 className="w-6 h-6" />
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <h2 className="text-lg sm:text-xl font-bold text-white">
+                        {selectedCompany.tradeName || selectedCompany.name}
+                      </h2>
+                      {selectedCompany.active ? (
+                        <span className="text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 px-2 py-0.5 rounded-full flex items-center gap-1">
+                          <CheckCircle2 className="w-3 h-3" /> Ativa
+                        </span>
+                      ) : (
+                        <span className="text-[10px] font-bold bg-rose-500/20 text-rose-300 border border-rose-500/40 px-2 py-0.5 rounded-full flex items-center gap-1">
+                          <Power className="w-3 h-3" /> Inativa
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-xs text-slate-300 mt-1">{selectedCompany.name}</p>
+                    <div className="flex items-center gap-3 sm:gap-4 mt-2 text-xs text-slate-400 flex-wrap">
+                      <span>CNPJ: <strong className="font-mono text-slate-200">{selectedCompany.cnpj}</strong></span>
+                      {selectedCompany.city && <span>• {selectedCompany.city}/{selectedCompany.state}</span>}
+                      {selectedCompany.email && <span>• {selectedCompany.email}</span>}
+                      {selectedCompany.phone && <span>• {selectedCompany.phone}</span>}
+                    </div>
+                  </div>
+                </div>
 
-                    {/* Delete */}
-                    <button
-                      onClick={() => setDeletingCompany(c)}
-                      className="flex items-center gap-1 text-xs font-semibold px-2.5 py-1.5 rounded-xl border border-rose-200 text-rose-700 bg-rose-50 hover:bg-rose-100 transition-colors"
-                      title="Excluir permanentemente"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                      <span>Excluir</span>
-                    </button>
+                <div className="bg-slate-800/90 border border-slate-700/80 p-3.5 rounded-2xl text-xs space-y-1 md:text-right shrink-0">
+                  <div className="text-[11px] text-slate-400 font-medium">Usuários nesta empresa</div>
+                  <div className="text-2xl font-black text-cyan-400">
+                    {companyUsers.length} <span className="text-xs font-normal text-slate-400">cadastrado(s)</span>
                   </div>
                 </div>
               </div>
-            ))}
-          </div>
-        </div>
-      )}
 
-      {/* ========================================================================= */}
-      {/* TAB 2: RECUPERAÇÃO DE SENHAS                                              */}
-      {/* ========================================================================= */}
-      {activeTab === 'passwords' && (
-        <div className="space-y-4">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white p-4 rounded-2xl border border-slate-200">
-            <div className="relative flex-1 max-w-md">
-              <Search className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
-              <input
-                type="text"
-                value={searchUser}
-                onChange={(e) => setSearchUser(e.target.value)}
-                placeholder="Buscar usuário por nome, e-mail, perfil ou empresa..."
-                className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-9 pr-3 py-2 text-xs font-medium focus:ring-2 focus:ring-cyan-500 outline-none"
-              />
-            </div>
+              {/* Banner de Garantia de Isolamento Multi-tenant */}
+              <div className="p-4 rounded-2xl bg-cyan-50/90 border border-cyan-200 text-cyan-950 text-xs flex items-start gap-3 shadow-xs">
+                <Shield className="w-4 h-4 text-cyan-700 shrink-0 mt-0.5" />
+                <div>
+                  <span className="font-bold">Isolamento Multi-empresa Rigoroso Ativo:</span>{' '}
+                  Os usuários listados abaixo têm acesso <strong>única e exclusivamente</strong> aos dados, condomínios, clientes e vistorias vinculados à empresa{' '}
+                  <strong>{selectedCompany.tradeName || selectedCompany.name}</strong>. Nenhum dado é compartilhado entre empresas distintas, garantindo sigilo e separação total de informações.
+                </div>
+              </div>
 
-            <button
-              onClick={fetchUsers}
-              className="flex items-center gap-2 px-3 py-2 border border-slate-200 hover:bg-slate-50 rounded-xl text-slate-600 text-xs font-semibold transition-colors"
-            >
-              <RefreshCw className={`w-3.5 h-3.5 ${loadingUsers ? 'animate-spin' : ''}`} />
-              <span>Atualizar Usuários</span>
-            </button>
-          </div>
+              {/* Tabela de Usuários Exclusivos desta Empresa */}
+              <div className="space-y-3">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white p-3.5 rounded-2xl border border-slate-200">
+                  <div className="relative flex-1 max-w-md">
+                    <Search className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
+                    <input
+                      type="text"
+                      value={searchUser}
+                      onChange={(e) => setSearchUser(e.target.value)}
+                      placeholder="Buscar usuário por nome, e-mail ou perfil..."
+                      className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-9 pr-3 py-1.5 text-xs font-medium focus:ring-2 focus:ring-cyan-500 outline-none"
+                    />
+                  </div>
 
-          <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-xs w-full max-w-full">
-            <div className="overflow-x-auto w-full max-w-full">
-              <table className="w-full text-left text-xs text-slate-700 min-w-[550px]">
-                <thead className="bg-slate-50 text-slate-500 font-bold border-b border-slate-200 uppercase tracking-wider text-[10px]">
-                  <tr>
-                    <th className="px-4 py-3">Usuário</th>
-                    <th className="px-4 py-3">Empresa</th>
-                    <th className="px-4 py-3">Perfil (Role)</th>
-                    <th className="px-4 py-3">Status</th>
-                    <th className="px-4 py-3 text-right">Ação Dev</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100">
-                  {filteredUsers.map((u) => (
-                    <tr key={u.id} className="hover:bg-slate-50/80 transition-colors">
-                      <td className="px-4 py-3">
-                        <div className="font-bold text-slate-900">{u.name}</div>
-                        <div className="text-[11px] text-slate-500 font-mono">{u.email}</div>
-                      </td>
-                      <td className="px-4 py-3 text-slate-600">
-                        {u.companyName || u.companyId}
-                      </td>
-                      <td className="px-4 py-3">
-                        <span
-                          className={`px-2 py-0.5 rounded text-[10px] font-bold ${
-                            u.role === 'DEV'
-                              ? 'bg-cyan-100 text-cyan-800'
-                              : u.role === 'GERENTE'
-                              ? 'bg-purple-100 text-purple-800'
-                              : u.role === 'SUPERVISOR'
-                              ? 'bg-blue-100 text-blue-800'
-                              : u.role === 'TECNICO'
-                              ? 'bg-emerald-100 text-emerald-800'
-                              : 'bg-amber-100 text-amber-800'
-                          }`}
+                  <div className="flex items-center gap-2">
+                    {!selectedCompanyHasManager ? (
+                      <button
+                        onClick={() => handleOpenNewUser(selectedCompany.id)}
+                        className="flex items-center gap-1.5 px-3 py-1.5 bg-cyan-600 hover:bg-cyan-500 rounded-xl text-white text-xs font-bold transition-colors shadow-xs"
+                        title="Cadastrar Gerente da Empresa"
+                      >
+                        <UserPlus className="w-3.5 h-3.5" />
+                        <span>+ Cadastrar Gerente</span>
+                      </button>
+                    ) : (
+                      <div className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 bg-purple-50 border border-purple-200 text-purple-900 rounded-xl text-[11px] font-bold">
+                        <Shield className="w-3.5 h-3.5 text-purple-600" />
+                        <span>Gerente Ativo</span>
+                      </div>
+                    )}
+                    <button
+                      onClick={fetchUsers}
+                      className="flex items-center gap-1.5 px-3 py-1.5 border border-slate-200 hover:bg-slate-50 rounded-xl text-slate-600 text-xs font-semibold transition-colors"
+                      title="Atualizar lista de usuários"
+                    >
+                      <RefreshCw className={`w-3.5 h-3.5 ${loadingUsers ? 'animate-spin' : ''}`} />
+                      <span>Atualizar</span>
+                    </button>
+                  </div>
+                </div>
+
+                {/* Banner Informativo da Regra de Permissões */}
+                <div className="bg-slate-50 border border-slate-200 rounded-2xl p-3.5 text-xs flex items-start gap-2.5">
+                  <Shield className="w-4 h-4 text-purple-600 mt-0.5 shrink-0" />
+                  <div className="text-slate-600">
+                    <span className="font-bold text-slate-900">Política de Acesso:</span> O Desenvolvedor inclui apenas o Gerente da empresa. Os demais funcionários (Supervisores, Técnicos e Síndicos) devem ser cadastrados exclusivamente pelo próprio <strong>Gerente</strong> da empresa.
+                  </div>
+                </div>
+
+                {companyUsers.length === 0 ? (
+                  <div className="bg-white border border-slate-200 rounded-2xl p-8 text-center space-y-3 shadow-xs">
+                    <div className="w-12 h-12 rounded-2xl bg-purple-100 text-purple-700 flex items-center justify-center mx-auto">
+                      <Shield className="w-6 h-6" />
+                    </div>
+                    <div>
+                      <h4 className="text-sm font-bold text-slate-900">Nenhum gerente cadastrado nesta empresa</h4>
+                      <p className="text-xs text-slate-500 mt-1 max-w-md mx-auto">
+                        Cadastre o Gerente responsável para que ele possa acessar o sistema e cadastrar os demais funcionários da empresa {selectedCompany.tradeName || selectedCompany.name}.
+                      </p>
+                    </div>
+                    <button
+                      onClick={() => handleOpenNewUser(selectedCompany.id)}
+                      className="inline-flex items-center gap-2 bg-cyan-600 hover:bg-cyan-500 text-white text-xs font-bold px-4 py-2 rounded-xl shadow-sm transition-all"
+                    >
+                      <UserPlus className="w-4 h-4" />
+                      <span>+ Cadastrar Gerente da Empresa</span>
+                    </button>
+                  </div>
+                ) : (
+                  <div className="w-full max-w-full space-y-3">
+                    {/* Mobile View: Cards (No horizontal scroll, 100% fits within screen) */}
+                    <div className="md:hidden space-y-3">
+                      {filteredCompanyUsers.map((u) => (
+                        <div
+                          key={u.id}
+                          className="bg-white border border-slate-200 rounded-2xl p-4 shadow-xs space-y-3"
                         >
-                          {u.role}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3">
-                        {u.active ? (
-                          <span className="text-emerald-700 text-[11px] font-medium flex items-center gap-1">
-                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block" />
-                            Ativo
-                          </span>
-                        ) : (
-                          <span className="text-rose-600 text-[11px] font-medium flex items-center gap-1">
-                            <span className="w-1.5 h-1.5 rounded-full bg-rose-500 inline-block" />
-                            Inativo
-                          </span>
-                        )}
-                      </td>
-                      <td className="px-4 py-3 text-right">
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="min-w-0 flex-1">
+                              <div className="font-bold text-slate-900 text-sm flex items-center gap-1.5 flex-wrap">
+                                <span>{u.name}</span>
+                                {u.role === 'DEV' && (
+                                  <span className="text-[9px] bg-cyan-100 text-cyan-800 font-bold px-1.5 py-0.5 rounded">
+                                    DEV
+                                  </span>
+                                )}
+                              </div>
+                              <div className="text-xs text-slate-500 font-mono break-all mt-0.5">
+                                {u.email}
+                              </div>
+                            </div>
+                            <span
+                              className={`px-2 py-0.5 rounded text-[10px] font-bold shrink-0 ${
+                                u.role === 'DEV'
+                                  ? 'bg-cyan-100 text-cyan-800'
+                                  : u.role === 'GERENTE'
+                                  ? 'bg-purple-100 text-purple-800'
+                                  : u.role === 'SUPERVISOR'
+                                  ? 'bg-blue-100 text-blue-800'
+                                  : u.role === 'TECNICO'
+                                  ? 'bg-emerald-100 text-emerald-800'
+                                  : 'bg-amber-100 text-amber-800'
+                              }`}
+                            >
+                              {u.role}
+                            </span>
+                          </div>
+
+                          <div className="grid grid-cols-2 gap-2 text-[11px] text-slate-600 pt-2 border-t border-slate-100">
+                            <div>
+                              <span className="text-slate-400 block text-[10px]">Registro Profissional:</span>
+                              <span className="font-semibold text-slate-700">{u.docRegistration || '—'}</span>
+                            </div>
+                            <div>
+                              <span className="text-slate-400 block text-[10px]">Status:</span>
+                              {u.active ? (
+                                <span className="text-emerald-700 font-bold flex items-center gap-1">
+                                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block" />
+                                  Ativo
+                                </span>
+                              ) : (
+                                <span className="text-rose-600 font-bold flex items-center gap-1">
+                                  <span className="w-1.5 h-1.5 rounded-full bg-rose-500 inline-block" />
+                                  Inativo
+                                </span>
+                              )}
+                            </div>
+                          </div>
+
+                          {u.phone && (
+                            <div className="text-[11px] text-slate-600">
+                              <span className="text-slate-400 text-[10px]">Telefone: </span>
+                              <span className="font-medium text-slate-700">{u.phone}</span>
+                            </div>
+                          )}
+
+                          <div className="pt-2 border-t border-slate-100 flex items-center justify-between gap-2">
+                            <button
+                              onClick={() => handleOpenResetModal(u)}
+                              className="flex-1 inline-flex items-center justify-center gap-1.5 bg-slate-900 hover:bg-slate-800 text-cyan-300 hover:text-cyan-200 text-xs font-bold px-3 py-2 rounded-xl shadow-xs transition-colors"
+                            >
+                              <KeyRound className="w-3.5 h-3.5 text-cyan-400" />
+                              <span>Redefinir Senha</span>
+                            </button>
+                            <button
+                              onClick={() => handleOpenEditUser(u)}
+                              className="p-2 border border-slate-200 hover:bg-slate-100 rounded-xl text-slate-600 transition-colors"
+                              title="Editar usuário"
+                            >
+                              <Edit2 className="w-4 h-4" />
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* Desktop View: Table */}
+                    <div className="hidden md:block bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-xs w-full max-w-full">
+                      <div className="overflow-x-auto w-full max-w-full">
+                        <table className="w-full text-left text-xs text-slate-700 min-w-[650px]">
+                          <thead className="bg-slate-50 text-slate-500 font-bold border-b border-slate-200 uppercase tracking-wider text-[10px]">
+                            <tr>
+                              <th className="px-4 py-3">Usuário</th>
+                              <th className="px-4 py-3">Perfil (Role)</th>
+                              <th className="px-4 py-3">Registro Profissional</th>
+                              <th className="px-4 py-3">Telefone</th>
+                              <th className="px-4 py-3">Status</th>
+                              <th className="px-4 py-3 text-right">Ações Dev</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-slate-100">
+                            {filteredCompanyUsers.map((u) => (
+                              <tr key={u.id} className="hover:bg-slate-50/80 transition-colors">
+                                <td className="px-4 py-3">
+                                  <div className="font-bold text-slate-900 flex items-center gap-1.5">
+                                    <span>{u.name}</span>
+                                    {u.role === 'DEV' && (
+                                      <span className="text-[9px] bg-cyan-100 text-cyan-800 font-bold px-1.5 py-0.2 rounded">
+                                        DEV
+                                      </span>
+                                    )}
+                                  </div>
+                                  <div className="text-[11px] text-slate-500 font-mono">{u.email}</div>
+                                </td>
+                                <td className="px-4 py-3">
+                                  <span
+                                    className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                                      u.role === 'DEV'
+                                        ? 'bg-cyan-100 text-cyan-800'
+                                        : u.role === 'GERENTE'
+                                        ? 'bg-purple-100 text-purple-800'
+                                        : u.role === 'SUPERVISOR'
+                                        ? 'bg-blue-100 text-blue-800'
+                                        : u.role === 'TECNICO'
+                                        ? 'bg-emerald-100 text-emerald-800'
+                                        : 'bg-amber-100 text-amber-800'
+                                    }`}
+                                  >
+                                    {u.role}
+                                  </span>
+                                </td>
+                                <td className="px-4 py-3 text-slate-600">
+                                  {u.docRegistration || '—'}
+                                </td>
+                                <td className="px-4 py-3 text-slate-600">
+                                  {u.phone || '—'}
+                                </td>
+                                <td className="px-4 py-3">
+                                  {u.active ? (
+                                    <span className="text-emerald-700 text-[11px] font-medium flex items-center gap-1">
+                                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block" />
+                                      Ativo
+                                    </span>
+                                  ) : (
+                                    <span className="text-rose-600 text-[11px] font-medium flex items-center gap-1">
+                                      <span className="w-1.5 h-1.5 rounded-full bg-rose-500 inline-block" />
+                                      Inativo
+                                    </span>
+                                  )}
+                                </td>
+                                <td className="px-4 py-3 text-right">
+                                  <div className="flex items-center justify-end gap-1.5">
+                                    <button
+                                      onClick={() => handleOpenResetModal(u)}
+                                      className="inline-flex items-center gap-1.5 bg-slate-900 hover:bg-slate-800 text-cyan-300 hover:text-cyan-200 text-xs font-bold px-3 py-1.5 rounded-xl shadow-xs transition-colors"
+                                      title="Redefinir ou recuperar senha"
+                                    >
+                                      <KeyRound className="w-3.5 h-3.5 text-cyan-400" />
+                                      <span>Redefinir Senha</span>
+                                    </button>
+
+                                    <button
+                                      onClick={() => handleOpenEditUser(u)}
+                                      className="p-1.5 border border-slate-200 hover:bg-slate-100 rounded-xl text-slate-600 transition-colors"
+                                      title="Editar usuário"
+                                    >
+                                      <Edit2 className="w-3.5 h-3.5" />
+                                    </button>
+                                  </div>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          ) : (
+            /* SE NENHUMA EMPRESA ESTIVER SELECIONADA: LISTA DAS EMPRESAS CADASTRADAS */
+            <div className="space-y-4 animate-fadeIn">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white p-4 rounded-2xl border border-slate-200 shadow-xs">
+                <div className="relative flex-1 max-w-md">
+                  <Search className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
+                  <input
+                    type="text"
+                    value={searchCompany}
+                    onChange={(e) => setSearchCompany(e.target.value)}
+                    placeholder="Buscar empresa por razão social, nome fantasia ou CNPJ..."
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-9 pr-3 py-2 text-xs font-medium focus:ring-2 focus:ring-cyan-500 outline-none"
+                  />
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => {
+                      fetchCompanies();
+                      fetchUsers();
+                    }}
+                    className="p-2 border border-slate-200 hover:bg-slate-50 rounded-xl text-slate-600 transition-colors"
+                    title="Atualizar lista"
+                  >
+                    <RefreshCw className={`w-4 h-4 ${loadingCompanies ? 'animate-spin' : ''}`} />
+                  </button>
+
+                  <button
+                    onClick={handleOpenCreateModal}
+                    className="flex items-center gap-2 bg-cyan-600 hover:bg-cyan-500 text-white text-xs sm:text-sm font-bold px-4 py-2 rounded-xl shadow-md shadow-cyan-600/20 transition-all active:scale-95 shrink-0"
+                  >
+                    <Plus className="w-4 h-4" />
+                    <span>Criar Nova Empresa</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Companies Grid */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {filteredCompanies.map((c) => {
+                  const compUsers = users.filter((u) => u.companyId === c.id);
+                  return (
+                    <div
+                      key={c.id}
+                      className={`bg-white border rounded-2xl p-5 shadow-xs flex flex-col justify-between transition-all hover:shadow-md ${
+                        c.active
+                          ? 'border-slate-200 hover:border-cyan-400'
+                          : 'border-rose-200 bg-rose-50/20 opacity-80'
+                      }`}
+                    >
+                      <div>
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="flex items-center gap-3">
+                            <div
+                              className={`w-11 h-11 rounded-xl flex items-center justify-center font-bold text-sm ${
+                                c.active ? 'bg-cyan-100 text-cyan-800' : 'bg-rose-100 text-rose-800'
+                              }`}
+                            >
+                              <Building2 className="w-6 h-6" />
+                            </div>
+                            <div>
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <h3 className="text-base font-bold text-slate-900">
+                                  {c.tradeName || c.name}
+                                </h3>
+                                {c.active ? (
+                                  <span className="text-[10px] font-bold bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full flex items-center gap-1">
+                                    <CheckCircle2 className="w-3 h-3" /> Ativa
+                                  </span>
+                                ) : (
+                                  <span className="text-[10px] font-bold bg-rose-100 text-rose-800 px-2 py-0.5 rounded-full flex items-center gap-1">
+                                    <Power className="w-3 h-3" /> Desativada
+                                  </span>
+                                )}
+                              </div>
+                              <p className="text-xs text-slate-500 mt-0.5">{c.name}</p>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="mt-4 text-xs text-slate-600 space-y-1.5 pt-3 border-t border-slate-100">
+                          <div className="flex items-center gap-2">
+                            <span className="font-semibold text-slate-700">CNPJ:</span>
+                            <span className="font-mono text-slate-900 font-medium">{c.cnpj}</span>
+                          </div>
+                          {c.email && (
+                            <div className="flex items-center gap-2 text-slate-500">
+                              <Mail className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                              <span>{c.email}</span>
+                            </div>
+                          )}
+                          {c.phone && (
+                            <div className="flex items-center gap-2 text-slate-500">
+                              <Phone className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                              <span>{c.phone}</span>
+                            </div>
+                          )}
+                          {c.address && (
+                            <div className="flex items-center gap-2 text-slate-500">
+                              <MapPin className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                              <span>{c.address} - {c.city}/{c.state}</span>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Botão de Acesso Exclusivo aos Usuários da Empresa */}
+                      <div className="mt-4 pt-3 border-t border-slate-100 space-y-3">
                         <button
-                          onClick={() => handleOpenResetModal(u)}
-                          className="inline-flex items-center gap-1.5 bg-slate-900 hover:bg-slate-800 text-cyan-300 hover:text-cyan-200 text-xs font-bold px-3 py-1.5 rounded-xl shadow-xs transition-colors"
+                          onClick={() => setSelectedCompanyId(c.id)}
+                          className="w-full flex items-center justify-between bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold px-4 py-2.5 rounded-xl shadow-xs transition-all active:scale-[0.99] group"
                         >
-                          <KeyRound className="w-3.5 h-3.5 text-cyan-400" />
-                          <span>Recuperar Senha</span>
+                          <div className="flex items-center gap-2">
+                            <Users className="w-4 h-4 text-cyan-400" />
+                            <span>Ver Usuários Desta Empresa</span>
+                          </div>
+                          <div className="flex items-center gap-1.5">
+                            <span className="bg-cyan-500/20 text-cyan-300 px-2 py-0.5 rounded-md text-[11px] font-semibold border border-cyan-500/30">
+                              {compUsers.length} usuário(s)
+                            </span>
+                            <ChevronRight className="w-4 h-4 text-slate-400 group-hover:text-cyan-300 group-hover:translate-x-0.5 transition-all" />
+                          </div>
                         </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+
+                        {/* Dev Secondary Actions */}
+                        <div className="flex items-center justify-between gap-2 pt-1">
+                          <span className="text-[11px] text-slate-400 font-mono">
+                            ID: {c.id}
+                          </span>
+
+                          <div className="flex items-center gap-1.5">
+                            {/* Toggle Active/Inactive */}
+                            <button
+                              onClick={() => handleToggleStatus(c)}
+                              className={`flex items-center gap-1 text-xs font-semibold px-2.5 py-1.5 rounded-xl border transition-colors ${
+                                c.active
+                                  ? 'border-amber-200 text-amber-700 bg-amber-50 hover:bg-amber-100'
+                                  : 'border-emerald-200 text-emerald-700 bg-emerald-50 hover:bg-emerald-100'
+                              }`}
+                              title={c.active ? 'Desativar empresa' : 'Ativar empresa'}
+                            >
+                              <Power className="w-3.5 h-3.5" />
+                              <span>{c.active ? 'Desativar' : 'Ativar'}</span>
+                            </button>
+
+                            {/* Edit */}
+                            <button
+                              onClick={() => handleOpenEditModal(c)}
+                              className="flex items-center gap-1 text-xs font-semibold px-2.5 py-1.5 rounded-xl border border-slate-200 text-slate-700 bg-slate-50 hover:bg-slate-100 transition-colors"
+                              title="Editar dados da empresa"
+                            >
+                              <Edit2 className="w-3.5 h-3.5" />
+                              <span>Editar</span>
+                            </button>
+
+                            {/* Delete */}
+                            <button
+                              onClick={() => setDeletingCompany(c)}
+                              className="flex items-center gap-1 text-xs font-semibold px-2.5 py-1.5 rounded-xl border border-rose-200 text-rose-700 bg-rose-50 hover:bg-rose-100 transition-colors"
+                              title="Excluir permanentemente"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                              <span>Excluir</span>
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
             </div>
-          </div>
+          )}
         </div>
       )}
 
@@ -650,7 +1067,7 @@ export const DevDashboard: React.FC = () => {
                   <Building className="w-4 h-4" />
                 </div>
                 <h3 className="text-base font-bold text-slate-900">
-                  {editingCompany ? 'Editar Empresa' : 'Cadastrar Nova Empresa (Dev)'}
+                  {editingCompany ? 'Editar Empresa' : 'Cadastrar Empresa e Gerente'}
                 </h3>
               </div>
               <button
@@ -708,7 +1125,7 @@ export const DevDashboard: React.FC = () => {
 
               <div className="grid grid-cols-2 gap-2">
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">E-mail</label>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">E-mail da Empresa</label>
                   <input
                     type="email"
                     value={email}
@@ -718,7 +1135,7 @@ export const DevDashboard: React.FC = () => {
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">Telefone</label>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">Telefone da Empresa</label>
                   <input
                     type="text"
                     value={phone}
@@ -764,6 +1181,91 @@ export const DevDashboard: React.FC = () => {
                 </div>
               </div>
 
+              {/* Seção do Gerente Responsável (Obrigatório ao cadastrar empresa) */}
+              {!editingCompany && (
+                <div className="pt-3 border-t border-slate-200 space-y-3">
+                  <div className="bg-purple-50 border border-purple-200 rounded-2xl p-3.5 space-y-1">
+                    <div className="flex items-center gap-2 text-purple-900 font-bold text-xs">
+                      <Shield className="w-4 h-4 text-purple-600" />
+                      <span>Gerente Responsável da Empresa (Obrigatório)</span>
+                    </div>
+                    <p className="text-[11px] text-purple-700 leading-relaxed">
+                      O Gerente é o administrador operacional da empresa no sistema. Ele será o único responsável por cadastrar os demais funcionários da equipe (Supervisores, Técnicos e Síndicos).
+                    </p>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-1">
+                      Nome do Gerente *
+                    </label>
+                    <input
+                      required
+                      type="text"
+                      value={mgrName}
+                      onChange={(e) => setMgrName(e.target.value)}
+                      placeholder="Ex: Eng. Carlos Eduardo"
+                      className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-medium focus:ring-2 focus:ring-cyan-500 outline-none"
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    <div>
+                      <label className="block text-xs font-bold text-slate-700 mb-1">
+                        E-mail de Login do Gerente *
+                      </label>
+                      <input
+                        required
+                        type="email"
+                        value={mgrEmail}
+                        onChange={(e) => setMgrEmail(e.target.value)}
+                        placeholder="gerente@empresa.com.br"
+                        className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-medium focus:ring-2 focus:ring-cyan-500 outline-none"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-bold text-slate-700 mb-1">
+                        Senha Inicial do Gerente *
+                      </label>
+                      <input
+                        required
+                        type="text"
+                        value={mgrPassword}
+                        onChange={(e) => setMgrPassword(e.target.value)}
+                        placeholder="Senha de acesso"
+                        className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-mono font-medium focus:ring-2 focus:ring-cyan-500 outline-none"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    <div>
+                      <label className="block text-xs font-bold text-slate-700 mb-1">
+                        Registro Profissional (CREA / CFT)
+                      </label>
+                      <input
+                        type="text"
+                        value={mgrDoc}
+                        onChange={(e) => setMgrDoc(e.target.value)}
+                        placeholder="Ex: CREA-SP 5061234"
+                        className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-medium focus:ring-2 focus:ring-cyan-500 outline-none"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-bold text-slate-700 mb-1">
+                        Telefone / Celular
+                      </label>
+                      <input
+                        type="text"
+                        value={mgrPhone}
+                        onChange={(e) => setMgrPhone(e.target.value)}
+                        placeholder="(11) 98765-4321"
+                        className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-medium focus:ring-2 focus:ring-cyan-500 outline-none"
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
+
               <div className="flex items-center justify-end gap-2 pt-4 border-t border-slate-100">
                 <button
                   type="button"
@@ -779,7 +1281,7 @@ export const DevDashboard: React.FC = () => {
                   type="submit"
                   className="px-5 py-2 text-xs font-bold text-white bg-cyan-600 hover:bg-cyan-500 rounded-xl shadow-sm transition-colors"
                 >
-                  {editingCompany ? 'Salvar Alterações' : 'Cadastrar Empresa'}
+                  {editingCompany ? 'Salvar Alterações' : 'Cadastrar Empresa e Gerente'}
                 </button>
               </div>
             </form>
@@ -941,7 +1443,171 @@ export const DevDashboard: React.FC = () => {
       )}
 
       {/* ========================================================================= */}
-      {/* TAB 3: BANCO DE DADOS & PERSISTÊNCIA FIREBASE                              */}
+      {/* MODAL: ADICIONAR / EDITAR USUÁRIO NA EMPRESA                              */}
+      {/* ========================================================================= */}
+      {isUserModalOpen && selectedCompany && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-950/70 backdrop-blur-xs animate-fadeIn w-full max-w-full overflow-y-auto">
+          <div className="bg-white rounded-3xl max-w-lg w-full p-4 sm:p-6 shadow-2xl border border-slate-100 my-auto">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-xl bg-cyan-100 text-cyan-800 flex items-center justify-center">
+                  <UserPlus className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold text-slate-900">
+                    {editingUser ? 'Editar Usuário' : 'Cadastrar Gerente da Empresa'}
+                  </h3>
+                  <p className="text-[11px] text-slate-500">
+                    Empresa: <strong>{selectedCompany.tradeName || selectedCompany.name}</strong>
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => {
+                  setIsUserModalOpen(false);
+                  setEditingUser(null);
+                }}
+                className="text-slate-400 p-1 hover:text-slate-600 rounded-lg"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveUser} className="mt-4 space-y-3.5">
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">
+                  Nome Completo *
+                </label>
+                <input
+                  required
+                  type="text"
+                  value={userName}
+                  onChange={(e) => setUserName(e.target.value)}
+                  placeholder="Ex: Eng. Roberto Carlos"
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-medium focus:ring-2 focus:ring-cyan-500 outline-none"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">
+                  E-mail de Login *
+                </label>
+                <input
+                  required
+                  type="email"
+                  value={userEmail}
+                  onChange={(e) => setUserEmail(e.target.value)}
+                  placeholder="gerente@empresa.com.br"
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-medium focus:ring-2 focus:ring-cyan-500 outline-none"
+                />
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">
+                    Perfil de Acesso (Role) *
+                  </label>
+                  {editingUser ? (
+                    <div className="w-full bg-slate-100 border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-700 flex items-center justify-between">
+                      <span>{editingUser.role}</span>
+                      <span className="text-[10px] text-slate-500 font-medium">Perfil Fixo</span>
+                    </div>
+                  ) : (
+                    <div className="space-y-1">
+                      <div className="w-full bg-purple-50 border border-purple-200 rounded-xl px-3 py-2 text-xs font-bold text-purple-900 flex items-center justify-between">
+                        <span>GERENTE</span>
+                        <span className="text-[10px] bg-purple-200 text-purple-800 font-bold px-1.5 py-0.5 rounded">Obrigatório</span>
+                      </div>
+                      <p className="text-[10px] text-slate-500 leading-tight">
+                        O desenvolvedor só cadastra o Gerente. Demais funcionários são cadastrados pelo próprio Gerente.
+                      </p>
+                    </div>
+                  )}
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">
+                    {editingUser ? 'Nova Senha (Opcional)' : 'Senha Inicial *'}
+                  </label>
+                  <input
+                    type="text"
+                    value={userPassword}
+                    onChange={(e) => setUserPassword(e.target.value)}
+                    placeholder={editingUser ? 'Manter senha atual' : 'Senha de acesso'}
+                    required={!editingUser}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-mono font-medium focus:ring-2 focus:ring-cyan-500 outline-none"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">
+                    Registro Profissional (CREA / CFT)
+                  </label>
+                  <input
+                    type="text"
+                    value={userDoc}
+                    onChange={(e) => setUserDoc(e.target.value)}
+                    placeholder="Ex: CREA-SP 123456/D"
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-medium focus:ring-2 focus:ring-cyan-500 outline-none"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">
+                    Telefone / WhatsApp
+                  </label>
+                  <input
+                    type="text"
+                    value={userPhone}
+                    onChange={(e) => setUserPhone(e.target.value)}
+                    placeholder="(11) 98765-4321"
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-medium focus:ring-2 focus:ring-cyan-500 outline-none"
+                  />
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2 pt-2">
+                <input
+                  type="checkbox"
+                  id="userActiveCheck"
+                  checked={userActive}
+                  onChange={(e) => setUserActive(e.target.checked)}
+                  className="rounded border-slate-300 text-cyan-600 focus:ring-cyan-500"
+                />
+                <label htmlFor="userActiveCheck" className="text-xs font-medium text-slate-700 cursor-pointer">
+                  Usuário Ativo (Pode realizar login no sistema)
+                </label>
+              </div>
+
+              <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsUserModalOpen(false);
+                    setEditingUser(null);
+                  }}
+                  className="px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-xl"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  disabled={savingUser}
+                  className="px-5 py-2 text-xs font-bold text-white bg-cyan-600 hover:bg-cyan-500 rounded-xl shadow-sm transition-colors flex items-center gap-2"
+                >
+                  {savingUser && <RefreshCw className="w-3.5 h-3.5 animate-spin" />}
+                  <span>{editingUser ? 'Salvar Alterações' : 'Cadastrar Usuário'}</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* TAB 2: BANCO DE DADOS & PERSISTÊNCIA FIREBASE                              */}
       {/* ========================================================================= */}
       {activeTab === 'database' && (
         <div className="space-y-6">
