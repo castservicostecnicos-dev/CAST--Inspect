@@ -740,12 +740,30 @@ class JsonDatabase {
         console.log(
           `[Firestore] Loaded live state from Firestore: ${companies.length} empresas, ${users.length} usuários, ${condominiums.length} condomínios, ${templates.length} modelos, ${inspections.length} vistorias.`
         );
-        if (companies.length > 0) this.data.companies = companies;
-        if (users.length > 0) this.data.users = users;
-        if (condominiums.length > 0) this.data.condominiums = condominiums;
-        if (templates.length > 0) this.data.templates = templates;
-        if (inspections.length > 0) this.data.inspections = inspections;
-        if (notifications.length > 0) this.data.notifications = notifications;
+
+        const mergeById = <T extends { id: string }>(localList: T[], remoteList: T[], collectionName: string): T[] => {
+          const map = new Map<string, T>();
+          for (const item of localList) {
+            if (item && item.id) map.set(item.id, item);
+          }
+          for (const item of remoteList) {
+            if (item && item.id) map.set(item.id, item);
+          }
+          // Push any local items that don't exist in remote Firestore yet
+          for (const [id, item] of map.entries()) {
+            if (!remoteList.some((r) => r && r.id === id)) {
+              saveDocumentToFirestore(collectionName, id, item);
+            }
+          }
+          return Array.from(map.values());
+        };
+
+        this.data.companies = mergeById(this.data.companies, companies, 'companies');
+        this.data.users = mergeById(this.data.users, users, 'users');
+        this.data.condominiums = mergeById(this.data.condominiums, condominiums, 'condominiums');
+        this.data.templates = mergeById(this.data.templates, templates, 'templates');
+        this.data.inspections = mergeById(this.data.inspections, inspections, 'inspections');
+        this.data.notifications = mergeById(this.data.notifications, notifications, 'notifications');
 
         // Ensure dev users are always intact even after sync with cloud state
         this.ensureDevUsers();

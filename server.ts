@@ -161,7 +161,7 @@ async function startServer() {
     // Cadastrar o Gerente junto ao cadastro da empresa, conforme regra do sistema
     let createdManager = null;
     if (data.manager && data.manager.name && data.manager.email) {
-      const managerUser = {
+      const managerUser: any = {
         id: `usr_${Date.now()}_mgr`,
         companyId: newCompany.id,
         companyName: newCompany.tradeName || newCompany.name,
@@ -169,11 +169,15 @@ async function startServer() {
         email: data.manager.email.trim(),
         password: data.manager.password?.trim() || 'Cast#' + Math.floor(1000 + Math.random() * 9000),
         role: 'GERENTE' as const,
-        phone: data.manager.phone?.trim() || undefined,
-        docRegistration: data.manager.docRegistration?.trim() || undefined,
         active: true,
         createdAt: new Date().toISOString(),
       };
+      if (data.manager.phone && data.manager.phone.trim()) {
+        managerUser.phone = data.manager.phone.trim();
+      }
+      if (data.manager.docRegistration && data.manager.docRegistration.trim()) {
+        managerUser.docRegistration = data.manager.docRegistration.trim();
+      }
       db.saveUser(managerUser);
       createdManager = managerUser;
     }
@@ -312,7 +316,7 @@ async function startServer() {
 
     const targetCompany = db.getCompanyById(targetCompanyId);
 
-    const newUser = {
+    const newUser: any = {
       ...data,
       id: data.id || `usr_${Date.now()}`,
       companyId: targetCompanyId,
@@ -320,6 +324,16 @@ async function startServer() {
       active: data.active ?? true,
       createdAt: new Date().toISOString(),
     };
+    if (data.phone && typeof data.phone === 'string' && data.phone.trim()) {
+      newUser.phone = data.phone.trim();
+    } else {
+      delete newUser.phone;
+    }
+    if (data.docRegistration && typeof data.docRegistration === 'string' && data.docRegistration.trim()) {
+      newUser.docRegistration = data.docRegistration.trim();
+    } else {
+      delete newUser.docRegistration;
+    }
     db.saveUser(newUser);
     res.status(201).json(newUser);
   });

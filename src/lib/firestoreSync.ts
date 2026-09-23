@@ -7,8 +7,80 @@ import {
   deleteDoc,
   serverTimestamp,
 } from 'firebase/firestore';
-import { db as firestoreDb } from '../firebase';
+import { db as firestoreDb, auth } from '../firebase';
 import { Company, User, Condominium, InspectionTemplate, Inspection } from '../types';
+
+export enum OperationType {
+  CREATE = 'create',
+  UPDATE = 'update',
+  DELETE = 'delete',
+  LIST = 'list',
+  GET = 'get',
+  WRITE = 'write',
+}
+
+export interface FirestoreErrorInfo {
+  error: string;
+  operationType: OperationType;
+  path: string | null;
+  authInfo: {
+    userId?: string | null;
+    email?: string | null;
+    emailVerified?: boolean | null;
+    isAnonymous?: boolean | null;
+    tenantId?: string | null;
+    providerInfo?: {
+      providerId?: string | null;
+      email?: string | null;
+    }[];
+  };
+}
+
+export function handleFirestoreError(error: unknown, operationType: OperationType, path: string | null): never {
+  const errInfo: FirestoreErrorInfo = {
+    error: error instanceof Error ? error.message : String(error),
+    authInfo: {
+      userId: auth.currentUser?.uid,
+      email: auth.currentUser?.email,
+      emailVerified: auth.currentUser?.emailVerified,
+      isAnonymous: auth.currentUser?.isAnonymous,
+      tenantId: auth.currentUser?.tenantId,
+      providerInfo: auth.currentUser?.providerData?.map((provider) => ({
+        providerId: provider.providerId,
+        email: provider.email,
+      })) || [],
+    },
+    operationType,
+    path,
+  };
+  console.error('Firestore Error: ', JSON.stringify(errInfo));
+  throw new Error(JSON.stringify(errInfo));
+}
+
+/**
+ * Strips undefined properties recursively to conform to Firestore data model rules.
+ */
+export function cleanForFirestore<T>(data: T): T {
+  if (data === undefined) return undefined as any;
+  if (data === null || typeof data !== 'object') return data;
+  if (Array.isArray(data)) {
+    return data
+      .filter((item) => item !== undefined)
+      .map((item) => cleanForFirestore(item)) as any;
+  }
+  if (data instanceof Date) return data.toISOString() as any;
+  if (data && typeof data === 'object' && (data as any).constructor?.name === 'FieldValue') {
+    return data;
+  }
+
+  const cleaned: Record<string, any> = {};
+  for (const [key, value] of Object.entries(data as Record<string, any>)) {
+    if (value !== undefined) {
+      cleaned[key] = cleanForFirestore(value);
+    }
+  }
+  return cleaned as T;
+}
 
 /**
  * Sync / Backup collections directly to Firebase Firestore
@@ -28,50 +100,75 @@ export const FirestoreService = {
       // 1. Companies
       if (data.companies) {
         for (const comp of data.companies) {
-          await setDoc(doc(firestoreDb, 'companies', comp.id), {
-            ...comp,
-            updatedAt: serverTimestamp(),
-          }, { merge: true });
+          const path = `companies/${comp.id}`;
+          try {
+            await setDoc(doc(firestoreDb, 'companies', comp.id), cleanForFirestore({
+              ...comp,
+              updatedAt: serverTimestamp(),
+            }), { merge: true });
+          } catch (e) {
+            handleFirestoreError(e, OperationType.WRITE, path);
+          }
         }
       }
 
       // 2. Users
       if (data.users) {
         for (const u of data.users) {
-          await setDoc(doc(firestoreDb, 'users', u.id), {
-            ...u,
-            updatedAt: serverTimestamp(),
-          }, { merge: true });
+          const path = `users/${u.id}`;
+          try {
+            await setDoc(doc(firestoreDb, 'users', u.id), cleanForFirestore({
+              ...u,
+              updatedAt: serverTimestamp(),
+            }), { merge: true });
+          } catch (e) {
+            handleFirestoreError(e, OperationType.WRITE, path);
+          }
         }
       }
 
       // 3. Condominiums
       if (data.condominiums) {
         for (const cond of data.condominiums) {
-          await setDoc(doc(firestoreDb, 'condominiums', cond.id), {
-            ...cond,
-            updatedAt: serverTimestamp(),
-          }, { merge: true });
+          const path = `condominiums/${cond.id}`;
+          try {
+            await setDoc(doc(firestoreDb, 'condominiums', cond.id), cleanForFirestore({
+              ...cond,
+              updatedAt: serverTimestamp(),
+            }), { merge: true });
+          } catch (e) {
+            handleFirestoreError(e, OperationType.WRITE, path);
+          }
         }
       }
 
       // 4. Templates
       if (data.templates) {
         for (const tmpl of data.templates) {
-          await setDoc(doc(firestoreDb, 'templates', tmpl.id), {
-            ...tmpl,
-            updatedAt: serverTimestamp(),
-          }, { merge: true });
+          const path = `templates/${tmpl.id}`;
+          try {
+            await setDoc(doc(firestoreDb, 'templates', tmpl.id), cleanForFirestore({
+              ...tmpl,
+              updatedAt: serverTimestamp(),
+            }), { merge: true });
+          } catch (e) {
+            handleFirestoreError(e, OperationType.WRITE, path);
+          }
         }
       }
 
       // 5. Inspections
       if (data.inspections) {
         for (const insp of data.inspections) {
-          await setDoc(doc(firestoreDb, 'inspections', insp.id), {
-            ...insp,
-            updatedAt: serverTimestamp(),
-          }, { merge: true });
+          const path = `inspections/${insp.id}`;
+          try {
+            await setDoc(doc(firestoreDb, 'inspections', insp.id), cleanForFirestore({
+              ...insp,
+              updatedAt: serverTimestamp(),
+            }), { merge: true });
+          } catch (e) {
+            handleFirestoreError(e, OperationType.WRITE, path);
+          }
         }
       }
 
@@ -109,7 +206,7 @@ export const FirestoreService = {
       };
     } catch (error) {
       console.error('Erro ao baixar dados do Firestore:', error);
-      throw error;
+      handleFirestoreError(error, OperationType.GET, 'all');
     }
   },
 
@@ -129,17 +226,18 @@ export const FirestoreService = {
       return { success: true };
     } catch (error) {
       console.error('Erro ao limpar modelos e vistorias no Firestore:', error);
-      throw error;
+      handleFirestoreError(error, OperationType.DELETE, 'templates_and_inspections');
     }
   },
 
   // Save single inspection directly to Firestore
   async saveInspectionToFirestore(inspection: Inspection) {
     try {
-      await setDoc(doc(firestoreDb, 'inspections', inspection.id), {
+      const cleaned = cleanForFirestore({
         ...inspection,
         updatedAt: serverTimestamp(),
-      }, { merge: true });
+      });
+      await setDoc(doc(firestoreDb, 'inspections', inspection.id), cleaned, { merge: true });
       return true;
     } catch (err) {
       console.error('Falha ao salvar vistoria no Firestore:', err);
@@ -147,3 +245,4 @@ export const FirestoreService = {
     }
   },
 };
+

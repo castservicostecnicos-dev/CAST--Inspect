@@ -79,6 +79,28 @@ export async function loadCollectionFromFirestore<T>(collectionName: string): Pr
   }
 }
 
+export function cleanForFirestore<T>(data: T): T {
+  if (data === undefined) return undefined as any;
+  if (data === null || typeof data !== 'object') return data;
+  if (Array.isArray(data)) {
+    return data
+      .filter((item) => item !== undefined)
+      .map((item) => cleanForFirestore(item)) as any;
+  }
+  if (data instanceof Date) return data.toISOString() as any;
+  if (data && typeof data === 'object' && (data as any).constructor?.name === 'FieldValue') {
+    return data;
+  }
+
+  const cleaned: Record<string, any> = {};
+  for (const [key, value] of Object.entries(data as Record<string, any>)) {
+    if (value !== undefined) {
+      cleaned[key] = cleanForFirestore(value);
+    }
+  }
+  return cleaned as T;
+}
+
 export async function saveDocumentToFirestore(
   collectionName: string,
   docId: string,
@@ -87,7 +109,8 @@ export async function saveDocumentToFirestore(
   const db = getFirestoreDb();
   if (!db) return;
   try {
-    const savePromise = setDoc(doc(db, collectionName, docId), data, { merge: true });
+    const cleaned = cleanForFirestore(data);
+    const savePromise = setDoc(doc(db, collectionName, docId), cleaned, { merge: true });
     await withTimeout(savePromise, 8000, undefined);
   } catch (err: any) {
     console.error(`[Firestore] Failed to write to ${collectionName}/${docId}:`, err.message);
