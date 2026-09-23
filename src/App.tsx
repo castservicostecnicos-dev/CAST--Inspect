@@ -13,6 +13,7 @@ import { CompaniesPage } from './pages/CompaniesPage';
 import { LoginPage } from './pages/LoginPage';
 import { DevDashboard } from './pages/DevDashboard';
 import { PwaInstallBanner } from './components/PwaInstallPrompt';
+import { SplashScreen } from './components/SplashScreen';
 
 function MainAppShell() {
   const { user, loading } = useAuth();
@@ -31,14 +32,7 @@ function MainAppShell() {
   };
 
   if (loading) {
-    return (
-      <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center text-white">
-        <div className="w-10 h-10 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mb-4" />
-        <span className="text-sm font-semibold tracking-wide text-slate-300">
-          Iniciando CAST Inspect...
-        </span>
-      </div>
-    );
+    return <SplashScreen message="Iniciando CAST Inspect..." />;
   }
 
   if (!user) {
