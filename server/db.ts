@@ -60,8 +60,8 @@ function getInitialSeedData(): DatabaseSchema {
   const users: User[] = [
     {
       id: 'usr_dev_cast',
-      companyId: 'emp_cast_01',
-      companyName: 'CAST Inspect (Sistema)',
+      companyId: '',
+      companyName: '',
       name: 'Dev Carlos (CAST)',
       email: 'cast.servicostecnicos@gmail.com',
       role: 'DEV',
@@ -71,8 +71,8 @@ function getInitialSeedData(): DatabaseSchema {
     },
     {
       id: 'usr_dev_ale',
-      companyId: 'emp_cast_01',
-      companyName: 'CAST Inspect (Sistema)',
+      companyId: '',
+      companyName: '',
       name: 'Carlos Alessandro',
       email: 'ale11062@gmail.com',
       role: 'DEV',
@@ -82,8 +82,8 @@ function getInitialSeedData(): DatabaseSchema {
     },
     {
       id: 'usr_dev_01',
-      companyId: 'emp_cast_01',
-      companyName: 'CAST Inspect (Sistema)',
+      companyId: '',
+      companyName: '',
       name: 'Equipe de Desenvolvimento',
       email: 'dev@castinspect.com.br',
       role: 'DEV',
@@ -571,16 +571,16 @@ class JsonDatabase {
       devCast.role = 'DEV';
       devCast.password = 'Cast@2468';
       devCast.active = true;
-      devCast.companyId = 'emp_cast_01';
-      devCast.companyName = 'CAST Inspect (Sistema)';
+      devCast.companyId = '';
+      devCast.companyName = '';
       if (!devCast.name || devCast.name.includes('Eng.')) {
         devCast.name = 'Dev Carlos (CAST)';
       }
     } else {
       devCast = {
         id: 'usr_dev_cast',
-        companyId: 'emp_cast_01',
-        companyName: 'CAST Inspect (Sistema)',
+        companyId: '',
+        companyName: '',
         name: 'Dev Carlos (CAST)',
         email: targetDevEmail,
         role: 'DEV',
@@ -603,6 +603,8 @@ class JsonDatabase {
       devAle.role = 'DEV';
       devAle.password = 'Cast@2468';
       devAle.active = true;
+      devAle.companyId = '';
+      devAle.companyName = '';
     }
 
     // Ensure Team Dev
@@ -613,6 +615,8 @@ class JsonDatabase {
       devTeam.role = 'DEV';
       devTeam.password = 'dev';
       devTeam.active = true;
+      devTeam.companyId = '';
+      devTeam.companyName = '';
     }
 
     // Ensure Gerente Alpha
@@ -830,9 +834,9 @@ class JsonDatabase {
 
   getUsers(companyId?: string): User[] {
     if (companyId) {
-      return this.data.users.filter((u) => u.companyId === companyId);
+      return this.data.users.filter((u) => u.companyId === companyId && u.role !== 'DEV');
     }
-    return this.data.users;
+    return this.data.users.filter((u) => u.role !== 'DEV');
   }
 
   getUserById(id: string): User | undefined {
@@ -954,6 +958,50 @@ class JsonDatabase {
     });
     inspection.criticalItemsCount = critical;
 
+    // Automatic Structure Versioning (Ambientes & Itens)
+    if (!inspection.structureVersion || inspection.structureVersion <= 0) {
+      const condoId = inspection.condominiumId;
+      const condoInspections = this.data.inspections.filter(
+        (i) => (i.condominiumId === condoId || !condoId) && i.id !== inspection.id
+      );
+
+      const getFp = (envs: any[]) => {
+        if (!envs || envs.length === 0) return 'empty';
+        return JSON.stringify(
+          envs
+            .map((e) => ({
+              name: (e.name || '').trim().toLowerCase(),
+              items: (e.items || [])
+                .map((it: any) => ({
+                  name: (it.name || '').trim().toLowerCase(),
+                  description: (it.description || '').trim().toLowerCase(),
+                }))
+                .sort((a: any, b: any) => a.name.localeCompare(b.name)),
+            }))
+            .sort((a, b) => a.name.localeCompare(b.name))
+        );
+      };
+
+      const fpMap = new Map<string, number>();
+      let maxVer = 0;
+      for (const past of condoInspections) {
+        const fp = getFp(past.environments || []);
+        if (fp === 'empty') continue;
+        if (!fpMap.has(fp)) {
+          const v = past.structureVersion && past.structureVersion > 0 ? past.structureVersion : maxVer + 1;
+          fpMap.set(fp, v);
+          if (v > maxVer) maxVer = v;
+        }
+      }
+
+      const currentFp = getFp(inspection.environments || []);
+      if (fpMap.has(currentFp)) {
+        inspection.structureVersion = fpMap.get(currentFp);
+      } else {
+        inspection.structureVersion = maxVer + 1;
+      }
+    }
+
     const existingIdx = this.data.inspections.findIndex((i) => i.companyId === companyId && i.id === inspection.id);
     if (existingIdx >= 0) {
       this.data.inspections[existingIdx] = inspection;
@@ -1061,28 +1109,79 @@ class JsonDatabase {
     let criticalMaintenance = 0;
     const criticalItems: DashboardStats['criticalItems'] = [];
 
+    const parseDateAlertInfo = (desc?: string, alertDate?: string, alertEnabled?: boolean) => {
+      if (!alertEnabled) return { isAlert: false, daysRemaining: 0, isExpired: false, isExpiringSoon: false, dateStr: '' };
+      const combined = `${alertDate || ''} ${desc || ''}`;
+      let iso = '';
+      const br = combined.match(/\b([0-3]?[0-9])[\/\-\.]([0-1]?[0-9])[\/\-\.]((?:20|19)\d{2})\b/);
+      if (br) {
+        iso = `${br[3]}-${String(br[2]).padStart(2, '0')}-${String(br[1]).padStart(2, '0')}`;
+      } else {
+        const ism = combined.match(/\b((?:20|19)\d{2})[\/\-\.]([0-1]?[0-9])[\/\-\.]([0-3]?[0-9])\b/);
+        if (ism) {
+          iso = `${ism[1]}-${String(ism[2]).padStart(2, '0')}-${String(ism[3]).padStart(2, '0')}`;
+        }
+      }
+      if (!iso) return { isAlert: false, daysRemaining: 0, isExpired: false, isExpiringSoon: false, dateStr: '' };
+
+      const [y, m, d] = iso.split('-').map(Number);
+      const target = new Date(y, m - 1, d, 23, 59, 59);
+      const now = new Date();
+      const today = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0);
+      const days = Math.ceil((target.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+      const isExp = days < 0;
+      const isSoon = days >= 0 && days <= 30;
+
+      return {
+        isAlert: isExp || isSoon,
+        daysRemaining: days,
+        isExpired: isExp,
+        isExpiringSoon: isSoon,
+        dateStr: `${String(d).padStart(2, '0')}/${String(m).padStart(2, '0')}/${y}`,
+      };
+    };
+
     companyInspections.forEach((insp) => {
       if (insp.status === 'CONCLUIDA') completed++;
       if (insp.status === 'EM_ANDAMENTO') inProgress++;
 
       insp.environments?.forEach((env) => {
         env.items?.forEach((item) => {
-          if (item.status === 'AGENDAR MANUTENÇÃO') {
+          const isMaintenanceStatus = item.status === 'AGENDAR MANUTENÇÃO';
+          const alertInfo = parseDateAlertInfo(item.description, item.alertDate, item.alertEnabled);
+
+          if (isMaintenanceStatus || alertInfo.isAlert) {
             criticalMaintenance++;
-            if (criticalItems.length < 15) {
-              criticalItems.push({
-                inspectionId: insp.id,
-                condominiumName: insp.condominiumName,
-                blockName: insp.blockName,
-                environmentName: env.name,
-                itemName: item.name,
-                observations: item.observations || 'Nenhuma observação informada.',
-                date: insp.date,
-              });
-            }
+            criticalItems.push({
+              inspectionId: insp.id,
+              condominiumName: insp.condominiumName,
+              blockName: insp.blockName,
+              environmentName: env.name,
+              itemName: item.name,
+              description: item.description,
+              observations: item.observations || (alertInfo.isAlert ? `Alerta de vencimento: ${alertInfo.dateStr}` : 'Manutenção agendada.'),
+              date: insp.date,
+              alertEnabled: item.alertEnabled,
+              alertDate: item.alertDate || (alertInfo.dateStr || undefined),
+              daysUntilDue: alertInfo.isAlert ? alertInfo.daysRemaining : undefined,
+              isExpired: alertInfo.isExpired,
+              isExpiringSoon: alertInfo.isExpiringSoon,
+            });
           }
         });
       });
+    });
+
+    // Sort critical items by urgency: expired first (most negative days), then closest due date, then maintenance status
+    criticalItems.sort((a, b) => {
+      if (a.isExpired && !b.isExpired) return -1;
+      if (!a.isExpired && b.isExpired) return 1;
+      if (a.daysUntilDue !== undefined && b.daysUntilDue !== undefined) {
+        return a.daysUntilDue - b.daysUntilDue;
+      }
+      if (a.daysUntilDue !== undefined) return -1;
+      if (b.daysUntilDue !== undefined) return 1;
+      return 0;
     });
 
     return {

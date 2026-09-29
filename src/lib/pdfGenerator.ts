@@ -159,6 +159,16 @@ export async function generateInspectionPdf(
   doc.setTextColor(30, 64, 175);
   doc.text(inspection.id, MARGIN_LEFT + USABLE_WIDTH - 23, currentY + 8.5, { align: 'center' });
 
+  if (inspection.structureVersion) {
+    doc.setFillColor(238, 242, 255);
+    doc.setDrawColor(199, 210, 254);
+    doc.rect(MARGIN_LEFT + USABLE_WIDTH - 42, currentY + 13, 38, 7, 'FD');
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(7.5);
+    doc.setTextColor(67, 56, 202);
+    doc.text(`VERSÃO ${inspection.structureVersion}`, MARGIN_LEFT + USABLE_WIDTH - 23, currentY + 17.5, { align: 'center' });
+  }
+
   currentY += 38;
 
   // Executive Summary Bar
@@ -271,6 +281,20 @@ export async function generateInspectionPdf(
 
       currentY += 10;
 
+      // Description text (informação para explicar o que é o item)
+      if (item.description && item.description.trim().length > 0) {
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(7.5);
+        doc.setTextColor(71, 85, 105);
+        doc.text('Descrição:', MARGIN_LEFT + 3, currentY + 3.5);
+
+        doc.setFont('helvetica', 'normal');
+        doc.setTextColor(51, 65, 85);
+        const splitDesc = doc.splitTextToSize(item.description, USABLE_WIDTH - 28);
+        doc.text(splitDesc, MARGIN_LEFT + 25, currentY + 3.5);
+        currentY += Math.max(6, splitDesc.length * 4 + 2);
+      }
+
       // Observations text
       if (item.observations && item.observations.trim().length > 0) {
         doc.setFont('helvetica', 'bold');
@@ -285,12 +309,12 @@ export async function generateInspectionPdf(
         currentY += Math.max(7, splitObs.length * 4 + 2);
       }
 
-      // CRITICAL SECTION: RENDER VERTICAL PHOTOS (EXACTLY 5 PER ROW, FIXED SIZE)
+      // Render item photos in chunks of 5
       if (photosCount > 0) {
         doc.setFont('helvetica', 'bold');
         doc.setFontSize(7.5);
         doc.setTextColor(100, 116, 139);
-        doc.text(`Registros Fotográficos Verticais (${photosCount}):`, MARGIN_LEFT + 3, currentY + 3);
+        doc.text(`Registros Fotográficos (${photosCount}):`, MARGIN_LEFT + 3, currentY + 3);
         currentY += 5;
 
         // Iterate through photos in chunks of 5

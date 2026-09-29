@@ -183,9 +183,6 @@ export const Condominiums: React.FC<CondominiumsProps> = ({ onNavigate }) => {
           <h1 className="text-xl sm:text-2xl font-black text-slate-900">
             Condomínios e Blocos/Torres
           </h1>
-          <p className="text-xs sm:text-sm text-slate-500 mt-0.5">
-            Cadastro de empreendimentos imobiliários e estruturação de torres para vistorias.
-          </p>
         </div>
 
         {canManageUsers && (
@@ -208,9 +205,6 @@ export const Condominiums: React.FC<CondominiumsProps> = ({ onNavigate }) => {
         <div className="bg-white border border-slate-200 rounded-2xl p-12 text-center">
           <Building className="w-12 h-12 text-slate-300 mx-auto mb-3" />
           <p className="text-sm font-bold text-slate-700">Nenhum condomínio cadastrado</p>
-          <p className="text-xs text-slate-500 mt-1">
-            Cadastre seu primeiro condomínio para iniciar as vistorias técnicas periódicas.
-          </p>
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

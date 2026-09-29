@@ -370,7 +370,7 @@ export const DevDashboard: React.FC = () => {
   };
 
   const selectedCompany = selectedCompanyId ? companies.find((c) => c.id === selectedCompanyId) || null : null;
-  const companyUsers = selectedCompanyId ? users.filter((u) => u.companyId === selectedCompanyId) : [];
+  const companyUsers = selectedCompanyId ? users.filter((u) => u.companyId === selectedCompanyId && u.role !== 'DEV') : [];
   const selectedCompanyHasManager = companyUsers.some((u) => u.role === 'GERENTE');
   const filteredCompanyUsers = companyUsers.filter((u) =>
     u.name.toLowerCase().includes(searchUser.toLowerCase()) ||
@@ -380,7 +380,7 @@ export const DevDashboard: React.FC = () => {
   );
 
   const handleOpenNewUser = (companyId: string) => {
-    const compUsers = users.filter((u) => u.companyId === companyId);
+    const compUsers = users.filter((u) => u.companyId === companyId && u.role !== 'DEV');
     const hasManager = compUsers.some((u) => u.role === 'GERENTE');
     if (hasManager) {
       alert('Esta empresa já possui um Gerente cadastrado. O Desenvolvedor não tem permissão para cadastrar outros funcionários. Os demais funcionários devem ser cadastrados pelo Gerente da empresa.');
@@ -685,9 +685,6 @@ export const DevDashboard: React.FC = () => {
                     </div>
                     <div>
                       <h4 className="text-sm font-bold text-slate-900">Nenhum gerente cadastrado nesta empresa</h4>
-                      <p className="text-xs text-slate-500 mt-1 max-w-md mx-auto">
-                        Cadastre o Gerente responsável para que ele possa acessar o sistema e cadastrar os demais funcionários da empresa {selectedCompany.tradeName || selectedCompany.name}.
-                      </p>
                     </div>
                     <button
                       onClick={() => handleOpenNewUser(selectedCompany.id)}
@@ -1655,10 +1652,6 @@ export const DevDashboard: React.FC = () => {
                     </p>
                   </div>
                 </div>
-
-                <p className="text-xs text-slate-600 leading-relaxed bg-slate-50 p-3 rounded-xl border border-slate-100">
-                  Executa a solicitação do desenvolvedor: remove todas as vistorias e modelos de checklist do banco de dados, <strong>preservando intactos todos os usuários e senhas</strong> do sistema.
-                </p>
               </div>
 
               <button
@@ -1725,10 +1718,6 @@ export const DevDashboard: React.FC = () => {
                     </p>
                   </div>
                 </div>
-
-                <p className="text-xs text-slate-600 leading-relaxed bg-slate-50 p-3 rounded-xl border border-slate-100">
-                  Sincroniza e faz backup do estado completo diretamente nas coleções do <strong>Firebase Firestore</strong>, assegurando que cadastros e relatórios fiquem permanentes na nuvem.
-                </p>
               </div>
 
               <div className="space-y-2">

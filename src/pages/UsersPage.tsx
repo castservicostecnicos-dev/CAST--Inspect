@@ -150,9 +150,6 @@ export const UsersPage: React.FC = () => {
           <h1 className="text-xl sm:text-2xl font-black text-slate-900">
             Usuários e Controle de Acesso (RBAC)
           </h1>
-          <p className="text-xs sm:text-sm text-slate-500 mt-0.5">
-            Gestão de perfis e permissões: Gerente, Supervisor, Técnico Inspetor e Administração Predial.
-          </p>
         </div>
 
         {canManageUsers && (

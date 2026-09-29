@@ -117,6 +117,9 @@ export interface InspectionItem {
   status: ItemStatus | null;
   observations: string;
   photos: InspectionPhoto[];
+  alertEnabled?: boolean; // Ticket de alerta de vencimento / manutenção
+  alertDate?: string;     // Data de vencimento extraída da descrição ou definida (YYYY-MM-DD ou DD/MM/YYYY)
+  urgencyLevel?: 'Crítica' | 'Alta' | 'Média' | 'Baixa'; // Grau de urgência da pendência
 }
 
 export interface InspectionEnvironment {
@@ -164,6 +167,7 @@ export interface Inspection {
   supervisorNotifiedAt?: string;
   criticalItemsCount?: number;
   generalNotes?: string;
+  structureVersion?: number; // Versão dos ambientes e itens
   syncStatus?: 'synced' | 'pending_sync';
   drivePdfFileId?: string;
   drivePdfUrl?: string;
@@ -196,7 +200,13 @@ export interface DashboardStats {
     blockName: string;
     environmentName: string;
     itemName: string;
+    description?: string;
     observations: string;
     date: string;
+    alertEnabled?: boolean;
+    alertDate?: string;
+    daysUntilDue?: number;
+    isExpired?: boolean;
+    isExpiringSoon?: boolean;
   }>;
 }

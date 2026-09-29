@@ -118,9 +118,6 @@ export const Templates: React.FC<TemplatesProps> = ({ onNavigate }) => {
           <h1 className="text-xl sm:text-2xl font-black text-slate-900">
             Modelos de Vistoria
           </h1>
-          <p className="text-xs sm:text-sm text-slate-500 mt-0.5">
-            Checklists padronizados de ambientes e itens estruturais para vistorias técnicas periódicas.
-          </p>
         </div>
 
         {canManageUsers && (
@@ -143,9 +140,6 @@ export const Templates: React.FC<TemplatesProps> = ({ onNavigate }) => {
         <div className="bg-white border border-slate-200 rounded-2xl p-12 text-center">
           <FileCheck2 className="w-12 h-12 text-slate-300 mx-auto mb-3" />
           <p className="text-sm font-bold text-slate-700">Nenhum modelo cadastrado</p>
-          <p className="text-xs text-slate-500 mt-1">
-            Crie um checklist estruturado de ambientes para orientar os vistoriadores em campo.
-          </p>
         </div>
       ) : (
         <div className="space-y-4">

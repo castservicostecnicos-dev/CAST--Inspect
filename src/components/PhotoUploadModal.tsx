@@ -337,13 +337,6 @@ export const PhotoUploadModal: React.FC<PhotoUploadModalProps> = ({
           </div>
         </div>
 
-        {/* Orientation Requirement Banner */}
-        <div className="bg-blue-50/80 px-4 py-2 border-b border-blue-100 flex items-center justify-between text-xs text-blue-800">
-          <span className="font-medium">
-            📐 Regra CAST Inspect: Fotos convertidas automaticamente para proporção vertical 3:4.
-          </span>
-        </div>
-
         {/* Modal Body / Gallery */}
         <div className="p-4 sm:p-6 overflow-y-auto flex-1">
           {localPhotos.length === 0 ? (

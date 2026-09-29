@@ -2,7 +2,6 @@ import React, { useState, useEffect, useRef } from 'react';
 import {
   ClipboardCheck,
   Server,
-  Cloud,
   CheckCircle2,
   AlertCircle,
   RefreshCw,
@@ -131,7 +130,6 @@ export const SplashScreen: React.FC<SplashScreenProps> = ({
   const [isReady, setIsReady] = useState<boolean>(false);
   const [isFadingOut, setIsFadingOut] = useState<boolean>(false);
   const [elapsedSeconds, setElapsedSeconds] = useState<number>(0);
-  const [showRenderTip, setShowRenderTip] = useState<boolean>(false);
   const [hasTimeoutError, setHasTimeoutError] = useState<boolean>(false);
   const [retryCount, setRetryCount] = useState<number>(0);
 
@@ -183,11 +181,6 @@ export const SplashScreen: React.FC<SplashScreenProps> = ({
       if (!isMountedRef.current || serverHealthyRef.current) return;
       const elapsed = Math.floor((Date.now() - startTimeRef.current) / 1000);
       setElapsedSeconds(elapsed);
-
-      // Show Render.com explanation if taking more than 8 seconds (typical cold-start)
-      if (elapsed >= 8) {
-        setShowRenderTip(true);
-      }
 
       // Show timeout warning and manual retry option after 65 seconds
       if (elapsed >= 65) {
@@ -241,7 +234,7 @@ export const SplashScreen: React.FC<SplashScreenProps> = ({
         } else if (elapsed < 8) {
           setStatusText('Conectando aos serviços em nuvem...');
         } else if (elapsed < 20) {
-          setStatusText('Despertando servidor em nuvem (Render.com)...');
+          setStatusText('Sincronizando serviços em nuvem...');
         } else if (elapsed < 35) {
           setStatusText('Carregando banco de dados e APIs operacionais...');
         } else if (elapsed < 50) {
@@ -538,22 +531,7 @@ export const SplashScreen: React.FC<SplashScreenProps> = ({
           </div>
         </div>
 
-        {/* Render.com Cold Start Notice Card (shows after 8s) */}
-        {showRenderTip && !isReady && (
-          <div className="w-full bg-blue-950/40 border border-blue-800/40 rounded-xl p-3 text-left text-xs text-slate-300 backdrop-blur-xs space-y-1.5 animate-fadeIn mb-3">
-            <div className="flex items-center gap-1.5 font-bold text-cyan-300 text-[11px]">
-              <Cloud className="w-3.5 h-3.5 shrink-0" />
-              <span>Inicialização do Servidor (Render.com)</span>
-            </div>
-            <p className="text-[11px] text-slate-300 leading-relaxed">
-              O servidor gratuito do Render entra em modo de repouso após
-              inatividade. O primeiro acesso leva cerca de <strong>30 a 50 segundos</strong> para
-              despertar todos os serviços. As próximas operações serão imediatas.
-            </p>
-          </div>
-        )}
-
-        {/* Timeout Fallback Action if Render takes unusually long */}
+        {/* Timeout Fallback Action if connection takes unusually long */}
         {hasTimeoutError && !isReady && (
           <div className="w-full bg-amber-950/30 border border-amber-800/40 rounded-xl p-3 text-center text-xs space-y-2 animate-fadeIn mb-3">
             <div className="flex items-center justify-center gap-1.5 font-bold text-amber-300 text-xs">

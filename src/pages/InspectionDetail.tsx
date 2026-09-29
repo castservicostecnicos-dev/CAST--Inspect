@@ -22,6 +22,7 @@ import { PdfViewerModal } from '../components/PdfViewerModal';
 import { ShareModal } from '../components/ShareModal';
 import { generateInspectionPdf } from '../lib/pdfGenerator';
 import { getCachedInspectionsIDB, getPendingInspectionsIDB } from '../lib/indexedDb';
+import { evaluateDateAlert } from '../lib/dateAlertHelper';
 import { WifiOff } from 'lucide-react';
 
 interface InspectionDetailProps {
@@ -102,9 +103,6 @@ export const InspectionDetail: React.FC<InspectionDetailProps> = ({
       <div className="bg-white border border-slate-200 rounded-2xl p-12 text-center max-w-lg mx-auto">
         <AlertTriangle className="w-10 h-10 text-amber-500 mx-auto mb-3" />
         <h3 className="text-base font-bold text-slate-800">Vistoria não encontrada</h3>
-        <p className="text-xs text-slate-500 mt-1">
-          A vistoria solicitada não existe ou pertence a outra empresa registrada no sistema.
-        </p>
         <button
           onClick={() => onNavigate('inspections')}
           className="mt-4 bg-blue-600 text-white text-xs font-semibold px-4 py-2 rounded-xl"
@@ -224,6 +222,11 @@ export const InspectionDetail: React.FC<InspectionDetailProps> = ({
               <span className="text-xs text-slate-400 font-medium">
                 {inspection.templateName}
               </span>
+              {inspection.structureVersion && (
+                <span className="text-[11px] font-bold px-2 py-0.5 rounded-lg bg-indigo-50 text-indigo-700 border border-indigo-200">
+                  Versão {inspection.structureVersion}
+                </span>
+              )}
             </div>
 
             <h1 className="text-xl sm:text-2xl font-black text-slate-900 mt-2">
@@ -299,33 +302,6 @@ export const InspectionDetail: React.FC<InspectionDetailProps> = ({
         </div>
       </div>
 
-      {/* Direct Photos Test Suite Bar (Verifies requirement #15 & #32 from the prompt) */}
-      <div className="bg-blue-50 border border-blue-200 rounded-2xl p-4 shadow-xs flex flex-col md:flex-row items-start md:items-center justify-between gap-3 text-xs">
-        <div>
-          <div className="flex items-center gap-1.5 font-bold text-blue-900">
-            <Sparkles className="w-4 h-4 text-blue-600" />
-            <span>Validação da Regra Prioritária de Fotos no PDF (Seção 15, 16 & 32):</span>
-          </div>
-          <p className="text-blue-700 mt-0.5">
-            Gera o PDF instantâneo com quantidade específica de fotos para validar que exatamente 5 cabem na linha e não mudam de tamanho:
-          </p>
-        </div>
-
-        <div className="flex flex-wrap items-center gap-1.5 shrink-0">
-          {[1, 2, 3, 4, 5, 6, 10].map((count) => (
-            <button
-              key={count}
-              disabled={testingPdf}
-              onClick={() => runPdfPhotosTest(count)}
-              className="bg-white hover:bg-blue-100 text-blue-800 border border-blue-300 font-bold text-[11px] px-2.5 py-1.5 rounded-lg transition-colors disabled:opacity-50"
-              title={`Testar geração de PDF com exatamente ${count} fotos verticais`}
-            >
-              {count} foto{count > 1 ? 's' : ''}
-            </button>
-          ))}
-        </div>
-      </div>
-
       {/* Environments and Items Breakdown */}
       <div className="space-y-4">
         <h2 className="text-base font-bold text-slate-900 px-1">
@@ -353,50 +329,92 @@ export const InspectionDetail: React.FC<InspectionDetailProps> = ({
               {env.items.map((item, iIdx) => {
                 const isOk = item.status === 'OK, MANUTENÇÃO EM DIA';
                 const isMaintenance = item.status === 'AGENDAR MANUTENÇÃO';
+                const photos = item.photos || [];
+                const photosCount = photos.length;
+                const alertEval = evaluateDateAlert(item.description, item.alertDate, !!item.alertEnabled);
 
                 return (
-                  <div key={item.id} className="pt-4 first:pt-0 space-y-2">
+                  <div key={item.id} className="pt-4 first:pt-0 space-y-2.5">
+                    {/* Item Name and Status (o que foi feito) */}
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                       <div>
-                        <span className="font-bold text-xs sm:text-sm text-slate-900">
-                          {iIdx + 1}. {item.name}
-                        </span>
-                        {item.description && (
-                          <p className="text-[11px] text-slate-500">{item.description}</p>
-                        )}
+                        <div className="flex items-center gap-2">
+                          <span className="w-5 h-5 rounded bg-slate-100 text-slate-700 text-xs font-bold flex items-center justify-center shrink-0">
+                            {iIdx + 1}
+                          </span>
+                          <span className="font-bold text-xs sm:text-sm text-slate-900">
+                            {item.name}
+                          </span>
+                        </div>
                       </div>
 
-                      <span
-                        className={`text-xs font-bold px-3 py-1 rounded-lg self-start sm:self-center border ${
-                          isOk
-                            ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
-                            : 'bg-red-50 text-red-800 border-red-200'
-                        }`}
-                      >
-                        {item.status || 'NÃO AVALIADO'}
-                      </span>
+                      <div className="flex items-center gap-2 self-start sm:self-center">
+                        {isMaintenance && (
+                          <span
+                            className={`text-[10px] font-bold px-2 py-0.5 rounded shadow-2xs ${
+                              (item.urgencyLevel || 'Alta') === 'Crítica'
+                                ? 'bg-red-600 text-white'
+                                : (item.urgencyLevel || 'Alta') === 'Alta'
+                                ? 'bg-amber-600 text-white'
+                                : (item.urgencyLevel || 'Alta') === 'Média'
+                                ? 'bg-yellow-500 text-white'
+                                : 'bg-blue-600 text-white'
+                            }`}
+                          >
+                            Urgência: {item.urgencyLevel || 'Alta'}
+                          </span>
+                        )}
+                        <span
+                          className={`text-xs font-bold px-3 py-1 rounded-lg border shadow-2xs ${
+                            isOk
+                              ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
+                              : 'bg-red-50 text-red-800 border-red-200'
+                          }`}
+                        >
+                          {item.status || 'NÃO AVALIADO'}
+                        </span>
+                      </div>
                     </div>
 
-                    {item.observations && (
-                      <div className="bg-slate-50 p-2.5 rounded-xl border border-slate-200/80 text-xs text-slate-700">
-                        <span className="font-bold text-slate-600">Observações: </span>
-                        {item.observations}
+                    {/* Descrição do Item com Alerta de Vencimento */}
+                    {item.description && (
+                      <div className="bg-slate-50/70 p-2.5 rounded-xl border border-slate-200/70 text-xs space-y-1">
+                        <div>
+                          <span className="font-bold text-slate-700">Descrição: </span>
+                          <span className="text-slate-800">{item.description}</span>
+                        </div>
+
+                        {/* Alert Status Badge if enabled */}
+                        {item.alertEnabled && alertEval.formattedDate && (
+                          <div className="flex items-center gap-1.5 pt-1">
+                            {alertEval.isExpired ? (
+                              <span className="text-[10px] font-bold text-white bg-red-600 px-2 py-0.5 rounded shadow-2xs">
+                                🚨 VENCIDO há {Math.abs(alertEval.daysRemaining || 0)} dias ({alertEval.formattedDate})
+                              </span>
+                            ) : alertEval.isExpiringSoon ? (
+                              <span className="text-[10px] font-bold text-amber-900 bg-amber-100 border border-amber-300 px-2 py-0.5 rounded">
+                                ⚠️ Vence em {alertEval.daysRemaining} dias ({alertEval.formattedDate})
+                              </span>
+                            ) : (
+                              <span className="text-[10px] font-medium text-emerald-800 bg-emerald-100 px-2 py-0.5 rounded">
+                                ✓ Em dia (vence em {alertEval.formattedDate})
+                              </span>
+                            )}
+                          </div>
+                        )}
                       </div>
                     )}
 
-                    {/* Photos attached to this item */}
-                    {item.photos && item.photos.length > 0 && (
+                    {/* Fotografias Verticais */}
+                    {photosCount > 0 && (
                       <div className="pt-1">
-                        <div className="text-[11px] font-bold text-slate-500 mb-1.5 flex items-center gap-1">
-                          <Camera className="w-3.5 h-3.5" />
-                          <span>
-                            Fotografias Verticais ({item.photos.length}) — No PDF: exibidas rigorosamente 5 por linha
-                          </span>
+                        <div className="text-[11px] font-bold text-slate-500 mb-1.5 flex items-center justify-between">
+                          <span>Fotografias ({photosCount}):</span>
                         </div>
 
-                        {/* Exact 5-column grid matching PDF layout */}
-                        <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 max-w-2xl">
-                          {item.photos.map((ph, pIdx) => (
+                        {/* Strict 5-column grid: photos retain identical fixed size regardless of count */}
+                        <div className="grid grid-cols-5 gap-2 max-w-2xl">
+                          {photos.map((ph, pIdx) => (
                             <div
                               key={ph.id}
                               className="relative rounded-lg overflow-hidden border border-slate-200 bg-slate-100 shadow-2xs group"
@@ -404,7 +422,7 @@ export const InspectionDetail: React.FC<InspectionDetailProps> = ({
                             >
                               <img
                                 src={ph.url}
-                                alt={ph.caption || 'Foto'}
+                                alt={ph.caption || `Foto #${pIdx + 1}`}
                                 className="w-full h-full object-cover"
                               />
                               <div className="absolute top-1 left-1 bg-slate-900/80 text-white text-[9px] font-bold px-1.5 py-0.5 rounded">
@@ -413,6 +431,14 @@ export const InspectionDetail: React.FC<InspectionDetailProps> = ({
                             </div>
                           ))}
                         </div>
+                      </div>
+                    )}
+
+                    {/* Campo Observação com as informações */}
+                    {item.observations && (
+                      <div className="bg-slate-50 p-2.5 rounded-xl border border-slate-200/80 text-xs text-slate-700">
+                        <span className="font-bold text-slate-700">Observações: </span>
+                        <span>{item.observations}</span>
                       </div>
                     )}
                   </div>

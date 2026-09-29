@@ -145,9 +145,6 @@ export const CompaniesPage: React.FC = () => {
           <h1 className="text-xl sm:text-2xl font-black text-slate-900">
             Estrutura Multiempresa (Multi-Tenant)
           </h1>
-          <p className="text-xs sm:text-sm text-slate-500 mt-0.5">
-            Ambiente com isolamento estrito de dados por empresa (CNPJ). Cada empresa possui seus próprios condomínios, laudos e usuários.
-          </p>
         </div>
 
         {canManageCompanies && (

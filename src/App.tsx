@@ -62,7 +62,11 @@ function MainAppShell() {
             )}
 
             {currentView === 'inspections' && (
-              <InspectionsList key={refreshTrigger} onNavigate={navigate} />
+              <InspectionsList
+                key={refreshTrigger}
+                onNavigate={navigate}
+                initialCondominiumId={currentParam || undefined}
+              />
             )}
 
             {currentView === 'new-inspection' && (
@@ -114,27 +118,6 @@ function MainAppShell() {
 }
 
 export default function App() {
-  const [serverReady, setServerReady] = useState<boolean>(() => {
-    try {
-      const warmedAt = sessionStorage.getItem('cast_server_warmed_at');
-      if (warmedAt && Date.now() - parseInt(warmedAt, 10) < 5 * 60 * 1000) {
-        return true;
-      }
-    } catch {
-      // ignore
-    }
-    return false;
-  });
-
-  if (!serverReady) {
-    return (
-      <SplashScreen
-        onReady={() => setServerReady(true)}
-        minDurationMs={1200}
-      />
-    );
-  }
-
   return (
     <AuthProvider>
       <MainAppShell />
