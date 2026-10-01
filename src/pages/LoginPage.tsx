@@ -119,7 +119,7 @@ export const LoginPage: React.FC = () => {
               disabled={loading}
               className="w-full mt-2 flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs sm:text-sm py-3 rounded-xl shadow-lg shadow-blue-600/30 transition-all active:scale-98 disabled:opacity-50 cursor-pointer"
             >
-              <span>{loading ? 'Entrando...' : 'Entrar'}</span>
+              <span>{loading ? 'Conectando ao servidor...' : 'Entrar'}</span>
               <ArrowRight className="w-4 h-4" />
             </button>
           </form>

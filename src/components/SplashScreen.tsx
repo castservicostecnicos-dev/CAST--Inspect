@@ -229,18 +229,20 @@ export const SplashScreen: React.FC<SplashScreenProps> = ({
       // Update contextual text based on progress & elapsed time
       if (!message && !serverHealthyRef.current) {
         const elapsed = (Date.now() - startTimeRef.current) / 1000;
-        if (elapsed < 3) {
+        if (!navigator.onLine) {
+          setStatusText('Modo offline detectado. Preparando dados locais...');
+        } else if (elapsed < 3) {
           setStatusText('Iniciando aplicação CAST Inspect...');
         } else if (elapsed < 8) {
           setStatusText('Conectando aos serviços em nuvem...');
-        } else if (elapsed < 20) {
-          setStatusText('Sincronizando serviços em nuvem...');
+        } else if (elapsed < 18) {
+          setStatusText('Inicializando servidor em nuvem (Render.com)...');
         } else if (elapsed < 35) {
           setStatusText('Carregando banco de dados e APIs operacionais...');
         } else if (elapsed < 50) {
-          setStatusText('Servidor em inicialização, aguarde alguns instantes...');
+          setStatusText('Servidor em inicialização rápida, aguarde alguns instantes...');
         } else {
-          setStatusText('Finalizando inicialização do ambiente...');
+          setStatusText('Finalizando inicialização do ambiente seguro...');
         }
       }
     }, 120);
@@ -257,14 +259,28 @@ export const SplashScreen: React.FC<SplashScreenProps> = ({
     async function probeServer() {
       if (!isMountedRef.current || serverHealthyRef.current) return;
 
+      // Se estiver offline, permite continuar com dados em cache após breve instante
+      if (!navigator.onLine) {
+        setTimeout(() => {
+          if (isMountedRef.current && !serverHealthyRef.current) {
+            handleServerReady();
+          }
+        }, 1200);
+        return;
+      }
+
       try {
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 4000);
+        // Timeout de 12 segundos por tentativa (ideal para aguardar o handshake do Render.com)
+        const timeoutId = setTimeout(() => controller.abort(), 12000);
 
-        const res = await fetch('/api/health', {
+        const res = await fetch(`/api/health?t=${Date.now()}`, {
           signal: controller.signal,
           cache: 'no-store',
-          headers: { 'Cache-Control': 'no-cache' },
+          headers: {
+            'Cache-Control': 'no-cache, no-store, must-revalidate',
+            Pragma: 'no-cache',
+          },
         });
 
         clearTimeout(timeoutId);
@@ -277,10 +293,10 @@ export const SplashScreen: React.FC<SplashScreenProps> = ({
           }
         }
       } catch (err) {
-        // Expected during Render.com cold start while server boots
+        // Normal durante cold start do Render.com enquanto a instância inicializa
       }
 
-      // If not yet ready, schedule next probe
+      // Se ainda não estiver pronto, agenda a próxima checagem
       if (isMountedRef.current && !serverHealthyRef.current) {
         checkTimeout = setTimeout(probeServer, 1500);
       }

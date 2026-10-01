@@ -88,50 +88,78 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   }, [user?.role, company?.id]);
 
   const login = async (email: string, password?: string): Promise<boolean> => {
-    try {
-      const res = await fetch('/api/auth/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password }),
-      });
+    let attempts = 0;
+    const maxAttempts = 3;
 
-      if (!res.ok) {
+    while (attempts < maxAttempts) {
+      attempts++;
+      try {
+        const res = await fetch('/api/auth/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email, password }),
+        });
+
+        // Se o Render.com estiver em cold-start acordando o container, pode retornar 502/503/504
+        if ((res.status === 502 || res.status === 503 || res.status === 504) && attempts < maxAttempts) {
+          await new Promise((r) => setTimeout(r, 2000));
+          continue;
+        }
+
+        if (!res.ok) {
+          const data = await res.json().catch(() => ({}));
+          throw new Error(data.error || 'Erro ao realizar login.');
+        }
+
         const data = await res.json();
-        throw new Error(data.error || 'Erro ao realizar login.');
-      }
+        setUser(data.user);
+        setCompany(data.company);
+        setToken(data.token);
+        setOriginalRole(data.user.role);
 
-      const data = await res.json();
-      setUser(data.user);
-      setCompany(data.company);
-      setToken(data.token);
-      setOriginalRole(data.user.role);
-
-      // Strict isolation: non-DEV users are strictly limited to their own company
-      if (data.user.role === 'DEV') {
+        // Marca servidor como ativo na sessão
         try {
-          const resComp = await fetch('/api/companies', {
-            headers: { 'x-user-role': 'DEV' },
-          });
-          if (resComp.ok) {
-            const comps = await resComp.json();
-            setAvailableCompanies(comps);
-          }
+          sessionStorage.setItem('cast_server_warmed_at', Date.now().toString());
         } catch {
+          // ignore
+        }
+
+        // Strict isolation: non-DEV users are strictly limited to their own company
+        if (data.user.role === 'DEV') {
+          try {
+            const resComp = await fetch('/api/companies', {
+              headers: { 'x-user-role': 'DEV' },
+            });
+            if (resComp.ok) {
+              const comps = await resComp.json();
+              setAvailableCompanies(comps);
+            }
+          } catch {
+            setAvailableCompanies([data.company]);
+          }
+        } else {
           setAvailableCompanies([data.company]);
         }
-      } else {
-        setAvailableCompanies([data.company]);
-      }
 
-      localStorage.setItem('cast_inspect_user', JSON.stringify(data.user));
-      localStorage.setItem('cast_inspect_company', JSON.stringify(data.company));
-      localStorage.setItem('cast_inspect_token', data.token);
-      localStorage.setItem('cast_inspect_orig_role', data.user.role);
-      return true;
-    } catch (err: any) {
-      console.warn('Login error:', err.message);
-      throw err;
+        localStorage.setItem('cast_inspect_user', JSON.stringify(data.user));
+        localStorage.setItem('cast_inspect_company', JSON.stringify(data.company));
+        localStorage.setItem('cast_inspect_token', data.token);
+        localStorage.setItem('cast_inspect_orig_role', data.user.role);
+        return true;
+      } catch (err: any) {
+        // Se for erro de rede (Render acordando), aguarda e tenta novamente
+        if (
+          attempts < maxAttempts &&
+          (err?.message === 'Failed to fetch' || err?.message?.includes('fetch') || err?.message?.includes('network'))
+        ) {
+          await new Promise((r) => setTimeout(r, 2000));
+          continue;
+        }
+        console.warn('Login error:', err.message);
+        throw err;
+      }
     }
+    return false;
   };
 
   const logout = () => {

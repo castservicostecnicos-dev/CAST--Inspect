@@ -16,7 +16,23 @@ import { PwaInstallBanner } from './components/PwaInstallPrompt';
 import { SplashScreen } from './components/SplashScreen';
 
 function MainAppShell() {
-  const { user, loading } = useAuth();
+  const { user } = useAuth();
+  const [isServerReady, setIsServerReady] = useState<boolean>(() => {
+    try {
+      const warmedAt = sessionStorage.getItem('cast_server_warmed_at');
+      if (warmedAt) {
+        const diff = Date.now() - parseInt(warmedAt, 10);
+        // Se verificado nos últimos 4 minutos, servidor continua aquecido
+        if (diff < 4 * 60 * 1000) {
+          return true;
+        }
+      }
+    } catch {
+      // ignore
+    }
+    return false;
+  });
+
   const [currentView, setCurrentView] = useState<string>('dashboard');
   const [currentParam, setCurrentParam] = useState<string | undefined>(undefined);
   const [refreshTrigger, setRefreshTrigger] = useState<number>(0);
@@ -31,8 +47,14 @@ function MainAppShell() {
     setRefreshTrigger((prev) => prev + 1);
   };
 
-  if (loading) {
-    return <SplashScreen message="Iniciando CAST Inspect..." />;
+  // Mascara ativamente o cold start do Render.com até que o endpoint de saúde responda com sucesso
+  if (!isServerReady) {
+    return (
+      <SplashScreen
+        minDurationMs={800}
+        onReady={() => setIsServerReady(true)}
+      />
+    );
   }
 
   if (!user) {
