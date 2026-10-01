@@ -414,6 +414,26 @@ async function startServer() {
     res.status(201).json(newTemplate);
   });
 
+  app.put('/api/templates/:id', (req, res) => {
+    const companyId = getCompanyId(req);
+    const tmpl = db.getTemplateById(companyId, req.params.id);
+    if (!tmpl) {
+      return res.status(404).json({ error: 'Modelo não encontrado nesta empresa.' });
+    }
+    const updated = { ...tmpl, ...req.body, id: req.params.id, companyId };
+    db.saveTemplate(companyId, updated);
+    res.json(updated);
+  });
+
+  app.delete('/api/templates/:id', (req, res) => {
+    const companyId = getCompanyId(req);
+    const deleted = db.deleteTemplate(companyId, req.params.id);
+    if (!deleted) {
+      return res.status(404).json({ error: 'Modelo não encontrado nesta empresa.' });
+    }
+    res.json({ success: true, message: 'Modelo excluído com sucesso.' });
+  });
+
   // Inspections CRUD (isolated by companyId)
   app.get('/api/inspections', (req, res) => {
     const companyId = getCompanyId(req);

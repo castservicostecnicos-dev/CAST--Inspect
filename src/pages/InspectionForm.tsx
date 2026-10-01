@@ -91,6 +91,9 @@ export const InspectionForm: React.FC<InspectionFormProps> = ({
   // New Item Input State per Environment
   const [newItemsByEnv, setNewItemsByEnv] = useState<{ [envId: string]: string }>({});
 
+  // New Environment Input State directly below an Environment
+  const [newEnvBelowByEnv, setNewEnvBelowByEnv] = useState<{ [envId: string]: string }>({});
+
   // Signatures
   const [technicianSignature, setTechnicianSignature] = useState<string | undefined>(undefined);
   const [syndicSignature, setSyndicSignature] = useState<string | undefined>(undefined);
@@ -262,17 +265,38 @@ export const InspectionForm: React.FC<InspectionFormProps> = ({
     }
   };
 
-  // Add a new Environment on the fly
-  const handleAddEnvironment = () => {
-    if (!newEnvName.trim()) return;
+  // Add a new Environment on the fly (optionally specifying name and afterIndex)
+  const handleAddEnvironment = (customName?: string, insertAfterIndex?: number) => {
+    const nameToUse = (customName !== undefined ? customName : newEnvName).trim();
+    if (!nameToUse) return;
+
     const createdEnv: InspectionEnvironment = {
       id: `env_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
-      name: newEnvName.trim(),
+      name: nameToUse,
       order: environments.length + 1,
       items: [],
     };
-    setEnvironments((prev) => [...prev, createdEnv]);
-    setNewEnvName('');
+
+    setEnvironments((prev) => {
+      if (insertAfterIndex !== undefined && insertAfterIndex >= 0 && insertAfterIndex < prev.length) {
+        const copy = [...prev];
+        copy.splice(insertAfterIndex + 1, 0, createdEnv);
+        return copy.map((e, idx) => ({ ...e, order: idx + 1 }));
+      }
+      return [...prev, createdEnv];
+    });
+
+    if (customName === undefined) {
+      setNewEnvName('');
+    }
+  };
+
+  // Add environment directly below a specific environment
+  const handleAddEnvironmentBelow = (envIndex: number, envId: string) => {
+    const name = (newEnvBelowByEnv[envId] || '').trim();
+    if (!name) return;
+    handleAddEnvironment(name, envIndex);
+    setNewEnvBelowByEnv((prev) => ({ ...prev, [envId]: '' }));
   };
 
   // Remove an Environment
@@ -937,7 +961,7 @@ export const InspectionForm: React.FC<InspectionFormProps> = ({
             />
             <button
               type="button"
-              onClick={handleAddEnvironment}
+              onClick={() => handleAddEnvironment()}
               className="flex items-center gap-1.5 bg-blue-600 hover:bg-blue-700 active:scale-95 text-white font-bold text-xs px-4 py-2.5 rounded-xl shadow-xs transition-all shrink-0"
               title="Criar ambiente"
             >
@@ -990,43 +1014,10 @@ export const InspectionForm: React.FC<InspectionFormProps> = ({
 
                 {/* Items Container */}
                 <div className="p-3.5 sm:p-5 space-y-4">
-                  {/* Item Creation Box inside this environment: "Item" text + blank input + "+" button */}
-                  <div className="p-3 bg-slate-50 rounded-xl border border-slate-200">
-                    <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">
-                      Item
-                    </label>
-                    <div className="flex items-center gap-2">
-                      <input
-                        type="text"
-                        value={currentItemInputValue}
-                        onChange={(e) =>
-                          setNewItemsByEnv((prev) => ({ ...prev, [env.id]: e.target.value }))
-                        }
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter') {
-                            e.preventDefault();
-                            handleAddItem(envIndex);
-                          }
-                        }}
-                        placeholder={`Digite o nome do item para "${env.name}" (ex: Extintores, Bomba de recalque, Quadro de luz...)`}
-                        className="flex-1 bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs sm:text-sm font-medium focus:ring-2 focus:ring-blue-500 outline-none"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => handleAddItem(envIndex)}
-                        className="flex items-center gap-1.5 bg-blue-600 hover:bg-blue-700 active:scale-95 text-white font-bold text-xs px-3.5 py-2 rounded-xl shadow-xs transition-all shrink-0"
-                        title="Adicionar item neste ambiente"
-                      >
-                        <Plus className="w-4 h-4 stroke-[3]" />
-                        <span className="hidden sm:inline">Adicionar Item</span>
-                      </button>
-                    </div>
-                  </div>
-
                   {/* Items List in this environment */}
                   {env.items.length === 0 ? (
-                    <div className="py-4 text-center text-xs text-slate-400 border border-dashed border-slate-200 rounded-xl">
-                      Nenhum item cadastrado neste ambiente. Digite o nome do item e clique em "+".
+                    <div className="py-4 text-center text-xs text-slate-500 border border-dashed border-slate-200 rounded-xl bg-slate-50/50">
+                      Nenhum item cadastrado neste ambiente ainda. Cadastre o primeiro item logo abaixo:
                     </div>
                   ) : (
                     <div className="divide-y divide-slate-100 space-y-4">
@@ -1314,10 +1305,115 @@ export const InspectionForm: React.FC<InspectionFormProps> = ({
                       })}
                     </div>
                   )}
+
+                  {/* SEMPRE ABAIXO DO ÚLTIMO ITEM CADASTRADO: INCLUSÃO DE NOVO ITEM E NOVO AMBIENTE */}
+                  <div className="mt-4 pt-3.5 border-t border-slate-200/80 space-y-3 bg-slate-50/90 p-3.5 sm:p-4 rounded-xl border border-slate-200 shadow-2xs">
+                    {/* Inclusão de Novo Item no ambiente atual */}
+                    <div>
+                      <label className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-blue-900 mb-1.5">
+                        <Plus className="w-3.5 h-3.5 text-blue-600 stroke-[3]" />
+                        <span>Novo Item em "{env.name}"</span>
+                      </label>
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="text"
+                          value={currentItemInputValue}
+                          onChange={(e) =>
+                            setNewItemsByEnv((prev) => ({ ...prev, [env.id]: e.target.value }))
+                          }
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                              e.preventDefault();
+                              handleAddItem(envIndex);
+                            }
+                          }}
+                          placeholder={`Digite o nome do novo item para "${env.name}" (ex: Extintor, Bomba, Quadro de Luz...)`}
+                          className="flex-1 bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs sm:text-sm font-medium focus:ring-2 focus:ring-blue-500 outline-none"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => handleAddItem(envIndex)}
+                          className="flex items-center gap-1.5 bg-blue-600 hover:bg-blue-700 active:scale-95 text-white font-bold text-xs px-3.5 py-2 rounded-xl shadow-xs transition-all shrink-0"
+                          title="Adicionar item neste ambiente"
+                        >
+                          <Plus className="w-4 h-4 stroke-[3]" />
+                          <span>Adicionar Item</span>
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Inclusão de Novo Ambiente (logo abaixo do último item) */}
+                    <div className="pt-3 border-t border-slate-200">
+                      <label className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-slate-800 mb-1.5">
+                        <Layers className="w-3.5 h-3.5 text-slate-700 stroke-[2.5]" />
+                        <span>Novo Ambiente</span>
+                      </label>
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="text"
+                          value={newEnvBelowByEnv[env.id] || ''}
+                          onChange={(e) =>
+                            setNewEnvBelowByEnv((prev) => ({ ...prev, [env.id]: e.target.value }))
+                          }
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                              e.preventDefault();
+                              handleAddEnvironmentBelow(envIndex, env.id);
+                            }
+                          }}
+                          placeholder="Digite o nome do novo ambiente (ex: Garagem, Barrilete, Hall...)"
+                          className="flex-1 bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs sm:text-sm font-medium focus:ring-2 focus:ring-blue-500 outline-none"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => handleAddEnvironmentBelow(envIndex, env.id)}
+                          className="flex items-center gap-1.5 bg-slate-900 hover:bg-slate-800 active:scale-95 text-white font-bold text-xs px-3.5 py-2 rounded-xl shadow-xs transition-all shrink-0"
+                          title="Criar novo ambiente logo abaixo"
+                        >
+                          <Plus className="w-4 h-4 stroke-[3]" />
+                          <span>Adicionar Ambiente</span>
+                        </button>
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </div>
             );
           })
+        )}
+
+        {/* Adicionar Novo Ambiente ao final de todos os ambientes */}
+        {environments.length > 0 && (
+          <div className="bg-slate-50 border-2 border-dashed border-slate-300 hover:border-blue-400 transition-colors rounded-2xl p-4 shadow-xs">
+            <label className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-slate-800 mb-1.5">
+              <Layers className="w-4 h-4 text-blue-600" />
+              <span>Adicionar Novo Ambiente ao Final da Vistoria</span>
+            </label>
+            <div className="flex items-center gap-2">
+              <input
+                type="text"
+                value={newEnvName}
+                onChange={(e) => setNewEnvName(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    handleAddEnvironment();
+                  }
+                }}
+                placeholder="Digite o nome do ambiente (ex: Hall de Entrada, Barrilete, Garagem, Salão de Festas, Cobertura...)"
+                className="flex-1 bg-white border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs sm:text-sm font-medium focus:ring-2 focus:ring-blue-500 outline-none"
+              />
+              <button
+                type="button"
+                onClick={() => handleAddEnvironment()}
+                className="flex items-center gap-1.5 bg-blue-600 hover:bg-blue-700 active:scale-95 text-white font-bold text-xs px-4 py-2.5 rounded-xl shadow-xs transition-all shrink-0"
+                title="Criar ambiente no final"
+              >
+                <Plus className="w-4 h-4 stroke-[3]" />
+                <span>Criar Ambiente</span>
+              </button>
+            </div>
+          </div>
         )}
       </div>
 

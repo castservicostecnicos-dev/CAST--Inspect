@@ -923,6 +923,19 @@ class JsonDatabase {
     return template;
   }
 
+  deleteTemplate(companyId: string, id: string): boolean {
+    const initialLen = this.data.templates.length;
+    this.data.templates = this.data.templates.filter(
+      (t) => !(t.companyId === companyId && t.id === id)
+    );
+    if (this.data.templates.length < initialLen) {
+      this.save();
+      deleteDocumentFromFirestore('templates', id);
+      return true;
+    }
+    return false;
+  }
+
   // --- Inspections (Multi-empresa isolated) ---
   getInspections(companyId: string, filter?: { condominiumId?: string; status?: string; technicianId?: string }): Inspection[] {
     let list = this.data.inspections.filter((i) => i.companyId === companyId);

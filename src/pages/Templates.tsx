@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   FileCheck2,
   Plus,
@@ -10,9 +10,22 @@ import {
   ChevronRight,
   X,
   Loader2,
+  Upload,
+  Download,
+  FileSpreadsheet,
+  AlertCircle,
+  FileText,
+  Check,
+  RotateCcw,
+  Info,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { InspectionTemplate, TemplateEnvironment, TemplateItem } from '../types';
+import {
+  parseTemplateCsv,
+  generateSampleTemplateCsv,
+  CsvParseResult,
+} from '../lib/csvTemplateParser';
 
 interface TemplatesProps {
   onNavigate: (view: string, param?: string) => void;
@@ -24,10 +37,26 @@ export const Templates: React.FC<TemplatesProps> = ({ onNavigate }) => {
   const [loading, setLoading] = useState(true);
   const [expandedTmpl, setExpandedTmpl] = useState<string | null>(null);
 
-  // Modal State
+  // Modal State for New / Edit Template
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
+  const [environments, setEnvironments] = useState<TemplateEnvironment[]>([]);
+
+  // CSV Import State
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [csvFeedback, setCsvFeedback] = useState<{
+    type: 'success' | 'error';
+    message: string;
+    filename?: string;
+  } | null>(null);
+  const [isPasteOpen, setIsPasteOpen] = useState(false);
+  const [pastedCsvText, setPastedCsvText] = useState('');
+
+  // Manual addition inputs inside modal
+  const [newEnvName, setNewEnvName] = useState('');
+  const [newItemsByEnv, setNewItemsByEnv] = useState<{ [envId: string]: string }>({});
 
   const fetchTemplates = async () => {
     if (!company) return;
@@ -44,7 +73,7 @@ export const Templates: React.FC<TemplatesProps> = ({ onNavigate }) => {
         }
       }
     } catch (e) {
-      console.error(e);
+      console.error('Erro ao buscar modelos:', e);
     } finally {
       setLoading(false);
     }
@@ -58,9 +87,214 @@ export const Templates: React.FC<TemplatesProps> = ({ onNavigate }) => {
     setExpandedTmpl(expandedTmpl === id ? null : id);
   };
 
+  // Helper to trigger sample CSV download
+  const handleDownloadSampleCsv = () => {
+    const csvContent = generateSampleTemplateCsv();
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.setAttribute('href', url);
+    link.setAttribute('download', 'modelo_vistoria_exemplo_cast.csv');
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
+  // Helper to export an existing template as CSV
+  const handleExportTemplateAsCsv = (tmpl: InspectionTemplate, e: React.MouseEvent) => {
+    e.stopPropagation();
+    const rows = [['Ambiente', 'Item']];
+    tmpl.environments.forEach((env) => {
+      if (env.items && env.items.length > 0) {
+        env.items.forEach((it) => {
+          rows.push([env.name, it.name]);
+        });
+      } else {
+        rows.push([env.name, '']);
+      }
+    });
+
+    const csvContent = rows
+      .map((r) => r.map((c) => `"${c.replace(/"/g, '""')}"`).join(';'))
+      .join('\r\n');
+
+    const cleanTitle = tmpl.title
+      .toLowerCase()
+      .replace(/[^a-z0-9]/gi, '_')
+      .replace(/_+/g, '_');
+    const filename = `modelo_${cleanTitle || 'vistoria'}.csv`;
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.setAttribute('href', url);
+    link.setAttribute('download', filename);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
+  // Handle CSV file selection
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const text = event.target?.result as string;
+      processCsvText(text, file.name);
+    };
+    reader.onerror = () => {
+      setCsvFeedback({
+        type: 'error',
+        message: 'Não foi possível ler o arquivo selecionado.',
+      });
+    };
+    reader.readAsText(file);
+
+    // Reset input so same file can be picked again if desired
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
+  // Process text as CSV
+  const processCsvText = (text: string, filename?: string) => {
+    const parsed: CsvParseResult = parseTemplateCsv(text);
+    if (!parsed.success) {
+      setCsvFeedback({
+        type: 'error',
+        message: parsed.error || 'Erro ao processar arquivo CSV.',
+      });
+      return;
+    }
+
+    setEnvironments(parsed.environments);
+    setCsvFeedback({
+      type: 'success',
+      message: `${parsed.totalEnvironments} ambientes e ${parsed.totalItems} itens carregados com sucesso!`,
+      filename,
+    });
+
+    // Suggest title if currently empty
+    if (!title.trim() && filename) {
+      const cleanName = filename
+        .replace(/\.[^/.]+$/, '')
+        .replace(/[_-]+/g, ' ')
+        .replace(/^\w/, (c) => c.toUpperCase());
+      setTitle(cleanName);
+    }
+  };
+
+  // Add an environment manually inside modal
+  const handleAddManualEnvironment = () => {
+    if (!newEnvName.trim()) return;
+    const createdEnv: TemplateEnvironment = {
+      id: `tenv_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+      name: newEnvName.trim(),
+      order: environments.length + 1,
+      items: [],
+    };
+    setEnvironments((prev) => [...prev, createdEnv]);
+    setNewEnvName('');
+  };
+
+  // Remove an environment inside modal
+  const handleRemoveEnvironment = (index: number) => {
+    setEnvironments((prev) => prev.filter((_, idx) => idx !== index));
+  };
+
+  // Add an item manually to an environment inside modal
+  const handleAddManualItem = (envIndex: number) => {
+    const env = environments[envIndex];
+    if (!env) return;
+    const itemText = (newItemsByEnv[env.id] || '').trim();
+    if (!itemText) return;
+
+    const newItem: TemplateItem = {
+      id: `tit_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+      name: itemText,
+      description: '', // Left blank to be filled during inspection
+      order: env.items.length + 1,
+    };
+
+    setEnvironments((prev) => {
+      const copy = [...prev];
+      copy[envIndex] = {
+        ...copy[envIndex],
+        items: [...copy[envIndex].items, newItem],
+      };
+      return copy;
+    });
+
+    setNewItemsByEnv((prev) => ({ ...prev, [env.id]: '' }));
+  };
+
+  // Remove an item inside modal
+  const handleRemoveItem = (envIndex: number, itemIndex: number) => {
+    setEnvironments((prev) => {
+      const copy = [...prev];
+      copy[envIndex] = {
+        ...copy[envIndex],
+        items: copy[envIndex].items.filter((_, idx) => idx !== itemIndex),
+      };
+      return copy;
+    });
+  };
+
+  // Clear modal and open for creation
+  const handleOpenNewModal = () => {
+    setTitle('');
+    setDescription('');
+    setEnvironments([]);
+    setCsvFeedback(null);
+    setIsPasteOpen(false);
+    setPastedCsvText('');
+    setNewEnvName('');
+    setNewItemsByEnv({});
+    setIsModalOpen(true);
+  };
+
+  // Delete Template
+  const handleDeleteTemplate = async (tmplId: string, tmplTitle: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!company) return;
+    if (!confirm(`Deseja realmente excluir o modelo de vistoria "${tmplTitle}"?`)) {
+      return;
+    }
+
+    try {
+      const res = await fetch(`/api/templates/${tmplId}`, {
+        method: 'DELETE',
+        headers: { 'x-company-id': company.id },
+      });
+      if (res.ok) {
+        setTemplates((prev) => prev.filter((t) => t.id !== tmplId));
+        if (expandedTmpl === tmplId) {
+          setExpandedTmpl(null);
+        }
+      } else {
+        alert('Erro ao excluir modelo.');
+      }
+    } catch (err) {
+      console.error(err);
+      alert('Falha na comunicação ao excluir modelo.');
+    }
+  };
+
+  // Submit and create Template
   const handleCreateTemplate = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!company || !title.trim()) return;
+
+    if (environments.length === 0) {
+      alert('Adicione pelo menos um ambiente ao modelo de vistoria através do CSV ou manualmente.');
+      return;
+    }
+
+    setSaving(true);
 
     const newTemplate: InspectionTemplate = {
       id: `tmpl_${Date.now()}`,
@@ -69,26 +303,15 @@ export const Templates: React.FC<TemplatesProps> = ({ onNavigate }) => {
       description: description.trim() || 'Modelo de inspeção predial',
       active: true,
       createdAt: new Date().toISOString(),
-      environments: [
-        {
-          id: `tenv_${Date.now()}_1`,
-          name: 'ÁREAS EXTERNAS E FACHADAS',
-          order: 1,
-          items: [
-            { id: `tit_${Date.now()}_1`, name: 'Pintura e Revestimento de Fachada', description: 'Fissuras, descolamento de pastilhas ou trincas', order: 1 },
-            { id: `tit_${Date.now()}_2`, name: 'Calçadas e Acessibilidade', description: 'Piso tátil, rampas e grelhas pluviais', order: 2 },
-          ],
-        },
-        {
-          id: `tenv_${Date.now()}_2`,
-          name: 'SISTEMA DE COMBATE A INCÊNDIO',
-          order: 2,
-          items: [
-            { id: `tit_${Date.now()}_3`, name: 'Extintores de Incêndio', description: 'Validade de carga, lacre e sinalização fotoluminescente', order: 1 },
-            { id: `tit_${Date.now()}_4`, name: 'Portas Corta-Fogo e Hidrantes', description: 'Fechamento automático, mangueiras e esguichos', order: 2 },
-          ],
-        },
-      ],
+      environments: environments.map((env, eIdx) => ({
+        ...env,
+        order: eIdx + 1,
+        items: env.items.map((it, iIdx) => ({
+          ...it,
+          description: it.description || '', // remains empty for inspection filling
+          order: iIdx + 1,
+        })),
+      })),
     };
 
     try {
@@ -100,46 +323,84 @@ export const Templates: React.FC<TemplatesProps> = ({ onNavigate }) => {
         },
         body: JSON.stringify(newTemplate),
       });
+
       if (res.ok) {
         setIsModalOpen(false);
-        setTitle('');
-        setDescription('');
         fetchTemplates();
+      } else {
+        alert('Erro ao criar modelo.');
       }
     } catch (err) {
-      alert('Erro ao criar modelo');
+      console.error(err);
+      alert('Falha ao comunicar com o servidor para criar modelo.');
+    } finally {
+      setSaving(false);
     }
   };
 
+  const totalLoadedItems = environments.reduce((acc, env) => acc + env.items.length, 0);
+
   return (
     <div className="space-y-6 pb-16 w-full max-w-full">
+      {/* Page Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
-          <h1 className="text-xl sm:text-2xl font-black text-slate-900">
-            Modelos de Vistoria
+          <h1 className="text-xl sm:text-2xl font-black text-slate-900 flex items-center gap-2.5">
+            <FileCheck2 className="w-6 h-6 text-blue-600" />
+            <span>Modelos de Vistoria</span>
           </h1>
+          <p className="text-xs text-slate-500 mt-1">
+            Cadastre modelos de checklist predial ou carregue seus ambientes e itens diretamente de planilhas CSV.
+          </p>
         </div>
 
-        {canManageUsers && (
+        <div className="flex items-center gap-2 self-start sm:self-auto flex-wrap">
           <button
-            onClick={() => setIsModalOpen(true)}
-            className="flex items-center gap-2 bg-blue-600 hover:bg-blue-500 text-white text-xs sm:text-sm font-bold px-4 py-2.5 rounded-xl shadow-md shadow-blue-600/20 transition-all active:scale-95 shrink-0"
+            type="button"
+            onClick={handleDownloadSampleCsv}
+            className="flex items-center gap-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold px-3.5 py-2.5 rounded-xl transition-all shadow-2xs"
+            title="Baixar planilha de exemplo com ambientes e itens"
           >
-            <Plus className="w-4 h-4" />
-            <span>Novo Modelo</span>
+            <Download className="w-3.5 h-3.5 text-slate-600" />
+            <span>Baixar Planilha CSV Modelo</span>
           </button>
-        )}
+
+          {canManageUsers && (
+            <button
+              onClick={handleOpenNewModal}
+              className="flex items-center gap-2 bg-blue-600 hover:bg-blue-500 active:scale-95 text-white text-xs sm:text-sm font-bold px-4 py-2.5 rounded-xl shadow-md shadow-blue-600/20 transition-all shrink-0"
+            >
+              <Plus className="w-4 h-4 stroke-[3]" />
+              <span>Novo Modelo</span>
+            </button>
+          )}
+        </div>
       </div>
 
+      {/* Templates List */}
       {loading ? (
         <div className="flex flex-col items-center justify-center py-16 text-slate-500">
           <Loader2 className="w-8 h-8 animate-spin text-blue-600 mb-2" />
-          <span className="text-xs font-semibold">Carregando modelos...</span>
+          <span className="text-xs font-semibold">Carregando modelos de vistoria...</span>
         </div>
       ) : templates.length === 0 ? (
-        <div className="bg-white border border-slate-200 rounded-2xl p-12 text-center">
-          <FileCheck2 className="w-12 h-12 text-slate-300 mx-auto mb-3" />
-          <p className="text-sm font-bold text-slate-700">Nenhum modelo cadastrado</p>
+        <div className="bg-white border border-slate-200 rounded-2xl p-12 text-center max-w-md mx-auto">
+          <div className="w-14 h-14 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center mx-auto mb-3">
+            <FileSpreadsheet className="w-7 h-7" />
+          </div>
+          <h3 className="text-base font-bold text-slate-800 mb-1">Nenhum modelo cadastrado</h3>
+          <p className="text-xs text-slate-500 mb-4">
+            Crie seu primeiro modelo de vistoria carregando uma planilha CSV com seus ambientes e itens, ou monte manualmente.
+          </p>
+          {canManageUsers && (
+            <button
+              onClick={handleOpenNewModal}
+              className="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold px-4 py-2.5 rounded-xl shadow-sm"
+            >
+              <Plus className="w-4 h-4 stroke-[3]" />
+              <span>Criar Primeiro Modelo</span>
+            </button>
+          )}
         </div>
       ) : (
         <div className="space-y-4">
@@ -153,35 +414,63 @@ export const Templates: React.FC<TemplatesProps> = ({ onNavigate }) => {
             return (
               <div
                 key={tmpl.id}
-                className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-xs"
+                className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-xs hover:border-slate-300 transition-colors"
               >
                 {/* Accordion Header */}
                 <div
                   onClick={() => toggleExpand(tmpl.id)}
-                  className="p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 cursor-pointer hover:bg-slate-50 transition-colors"
+                  className="p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 cursor-pointer hover:bg-slate-50/70 transition-colors"
                 >
                   <div className="flex items-center gap-3 min-w-0">
-                    <div className="w-9 h-9 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center shrink-0">
+                    <div className="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center shrink-0 border border-blue-100">
                       <FileCheck2 className="w-5 h-5" />
                     </div>
                     <div className="min-w-0">
-                      <h3 className="text-sm sm:text-base font-bold text-slate-900 truncate">
-                        {tmpl.title}
-                      </h3>
-                      <p className="text-xs text-slate-500 mt-0.5 break-words">
+                      <div className="flex items-center gap-2">
+                        <h3 className="text-sm sm:text-base font-bold text-slate-900 truncate">
+                          {tmpl.title}
+                        </h3>
+                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-100 shrink-0">
+                          {tmpl.environments.length} Ambientes
+                        </span>
+                      </div>
+                      <p className="text-xs text-slate-500 mt-0.5 break-words line-clamp-2">
                         {tmpl.description}
                       </p>
                     </div>
                   </div>
 
-                  <div className="flex items-center justify-between sm:justify-end gap-3 shrink-0 pt-2 sm:pt-0 border-t sm:border-t-0 border-slate-100">
+                  <div className="flex items-center justify-between sm:justify-end gap-2.5 shrink-0 pt-2 sm:pt-0 border-t sm:border-t-0 border-slate-100">
                     <span className="text-xs font-semibold bg-slate-100 text-slate-700 px-2.5 py-1 rounded-lg">
-                      {tmpl.environments.length} Ambientes &bull; {totalItems} Itens
+                      {totalItems} {totalItems === 1 ? 'Item' : 'Itens'}
                     </span>
+
+                    {/* Export Template to CSV */}
+                    <button
+                      type="button"
+                      onClick={(e) => handleExportTemplateAsCsv(tmpl, e)}
+                      className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                      title="Exportar checklist para planilha CSV"
+                    >
+                      <Download className="w-4 h-4" />
+                    </button>
+
+                    {/* Delete Template */}
+                    {canManageUsers && (
+                      <button
+                        type="button"
+                        onClick={(e) => handleDeleteTemplate(tmpl.id, tmpl.title, e)}
+                        className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                        title="Excluir este modelo"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    )}
+
                     {isExpanded ? (
-                      <ChevronDown className="w-4 h-4 text-slate-400" />
+                      <ChevronDown className="w-4 h-4 text-slate-400 ml-1" />
                     ) : (
-                      <ChevronRight className="w-4 h-4 text-slate-400" />
+                      <ChevronRight className="w-4 h-4 text-slate-400 ml-1" />
                     )}
                   </div>
                 </div>
@@ -189,44 +478,62 @@ export const Templates: React.FC<TemplatesProps> = ({ onNavigate }) => {
                 {/* Accordion Content: Hierarchy of Environments & Items */}
                 {isExpanded && (
                   <div className="border-t border-slate-100 bg-slate-50/50 p-4 sm:p-6 space-y-4">
-                    {tmpl.environments.map((env, eIdx) => (
-                      <div
-                        key={env.id}
-                        className="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-2xs"
-                      >
-                        <div className="bg-slate-800 text-white px-3.5 py-2.5 text-xs font-bold uppercase tracking-wider flex items-center justify-between">
-                          <span>
-                            {eIdx + 1}. {env.name}
-                          </span>
-                          <span className="text-[10px] text-slate-300 font-normal">
-                            {env.items.length} itens cadastrados
-                          </span>
-                        </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-bold text-slate-700 uppercase tracking-wider">
+                        Estrutura do Checklist Predial
+                      </span>
+                      <span className="text-[11px] text-slate-500 font-medium">
+                        Total de {tmpl.environments.length} ambientes cadastrados
+                      </span>
+                    </div>
 
-                        <div className="p-3 divide-y divide-slate-100 text-xs">
-                          {env.items.map((it, iIdx) => (
-                            <div
-                              key={it.id}
-                              className="py-2 first:pt-1 last:pb-1 flex items-start justify-between gap-2"
-                            >
-                              <div>
-                                <span className="font-semibold text-slate-800">
-                                  {iIdx + 1}. {it.name}
-                                </span>
-                                {it.description && (
-                                  <p className="text-[11px] text-slate-500 mt-0.5">
-                                    {it.description}
-                                  </p>
-                                )}
-                              </div>
-                              <span className="text-[10px] text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded font-medium shrink-0">
-                                Padrão CAST
-                              </span>
-                            </div>
-                          ))}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
+                      {tmpl.environments.map((env, eIdx) => (
+                        <div
+                          key={env.id}
+                          className="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-2xs flex flex-col"
+                        >
+                          <div className="bg-slate-900 text-white px-3.5 py-2.5 text-xs font-bold uppercase tracking-wider flex items-center justify-between">
+                            <span className="truncate">
+                              {eIdx + 1}. {env.name}
+                            </span>
+                            <span className="text-[10px] text-slate-300 font-normal shrink-0 ml-2">
+                              {env.items.length} {env.items.length === 1 ? 'item' : 'itens'}
+                            </span>
+                          </div>
+
+                          <div className="p-3 divide-y divide-slate-100 text-xs flex-1">
+                            {env.items.length === 0 ? (
+                              <p className="text-[11px] text-slate-400 italic py-1">
+                                Nenhum item cadastrado neste ambiente
+                              </p>
+                            ) : (
+                              env.items.map((it, iIdx) => (
+                                <div
+                                  key={it.id}
+                                  className="py-1.5 first:pt-0 last:pb-0 flex items-start justify-between gap-2"
+                                >
+                                  <div className="min-w-0">
+                                    <span className="font-semibold text-slate-800 break-words">
+                                      {iIdx + 1}. {it.name}
+                                    </span>
+                                    {it.description ? (
+                                      <p className="text-[11px] text-slate-500 mt-0.5">
+                                        {it.description}
+                                      </p>
+                                    ) : (
+                                      <p className="text-[10px] text-slate-400 italic mt-0.5">
+                                        Descrição técnica e observações preenchidas durante a vistoria
+                                      </p>
+                                    )}
+                                  </div>
+                                </div>
+                              ))
+                            )}
+                          </div>
                         </div>
-                      </div>
-                    ))}
+                      ))}
+                    </div>
                   </div>
                 )}
               </div>
@@ -235,58 +542,347 @@ export const Templates: React.FC<TemplatesProps> = ({ onNavigate }) => {
         </div>
       )}
 
-      {/* New Template Modal */}
+      {/* New Template Modal with CSV Import Support */}
       {isModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-900/60 backdrop-blur-xs animate-fadeIn w-full max-w-full overflow-y-auto">
-          <div className="bg-white rounded-2xl max-w-md w-full p-4 sm:p-6 shadow-2xl my-auto">
-            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
-              <h3 className="text-base font-bold text-slate-900">Novo Modelo de Vistoria</h3>
-              <button onClick={() => setIsModalOpen(false)} className="text-slate-400">
+          <div className="bg-white rounded-2xl max-w-2xl w-full p-4 sm:p-6 shadow-2xl my-auto max-h-[92vh] flex flex-col">
+            {/* Modal Header */}
+            <div className="flex items-center justify-between pb-3.5 border-b border-slate-100 shrink-0">
+              <div className="flex items-center gap-2">
+                <FileCheck2 className="w-5 h-5 text-blue-600" />
+                <h3 className="text-base font-bold text-slate-900">Novo Modelo de Vistoria</h3>
+              </div>
+              <button
+                onClick={() => setIsModalOpen(false)}
+                className="text-slate-400 hover:text-slate-600 p-1 rounded-lg"
+              >
                 <X className="w-4 h-4" />
               </button>
             </div>
 
-            <form onSubmit={handleCreateTemplate} className="mt-4 space-y-4">
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">
-                  Título do Modelo *
-                </label>
-                <input
-                  required
-                  type="text"
-                  value={title}
-                  onChange={(e) => setTitle(e.target.value)}
-                  placeholder="Ex: Vistoria Predial Periódica Completa"
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-medium focus:ring-2 focus:ring-blue-500 outline-none"
-                />
+            {/* Modal Scrollable Body */}
+            <form onSubmit={handleCreateTemplate} className="mt-4 space-y-5 overflow-y-auto pr-1 flex-1">
+              {/* Basic Fields */}
+              <div className="space-y-3">
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">
+                    Título do Modelo *
+                  </label>
+                  <input
+                    required
+                    type="text"
+                    value={title}
+                    onChange={(e) => setTitle(e.target.value)}
+                    placeholder="Ex: Vistoria Predial Periódica Completa"
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs sm:text-sm font-medium focus:ring-2 focus:ring-blue-500 outline-none"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">
+                    Descrição do Checklist
+                  </label>
+                  <textarea
+                    rows={2}
+                    value={description}
+                    onChange={(e) => setDescription(e.target.value)}
+                    placeholder="Objetivo da inspeção, escopo das áreas inspecionadas..."
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs font-medium focus:ring-2 focus:ring-blue-500 outline-none"
+                  />
+                </div>
               </div>
 
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">
-                  Descrição do Checklist
-                </label>
-                <textarea
-                  rows={3}
-                  value={description}
-                  onChange={(e) => setDescription(e.target.value)}
-                  placeholder="Objetivo da inspeção e escopo técnico..."
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs font-medium focus:ring-2 focus:ring-blue-500 outline-none"
-                />
+              {/* CSV Upload Section (PROMINENT) */}
+              <div className="bg-blue-50/70 border-2 border-dashed border-blue-200 hover:border-blue-400 transition-colors rounded-2xl p-4 sm:p-5">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-3">
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-9 h-9 rounded-xl bg-blue-600 text-white flex items-center justify-center shrink-0 shadow-xs">
+                      <FileSpreadsheet className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <h4 className="text-xs sm:text-sm font-bold text-blue-950">
+                        Carregar Ambientes e Itens via CSV
+                      </h4>
+                      <p className="text-[11px] text-blue-800">
+                        Importe planilhas (.csv / .txt) com as colunas <strong>Ambiente</strong> e <strong>Item</strong>
+                      </p>
+                    </div>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={handleDownloadSampleCsv}
+                    className="flex items-center gap-1.5 bg-white border border-blue-200 hover:bg-blue-50 text-blue-700 text-[11px] font-bold px-3 py-1.5 rounded-lg shadow-2xs shrink-0 self-start sm:self-auto"
+                  >
+                    <Download className="w-3.5 h-3.5" />
+                    <span>Baixar CSV Exemplo</span>
+                  </button>
+                </div>
+
+                {/* Upload action buttons */}
+                <div className="flex items-center gap-2 flex-wrap">
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept=".csv,text/csv,text/plain"
+                    onChange={handleFileChange}
+                    className="hidden"
+                  />
+
+                  <button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 active:scale-95 text-white text-xs font-bold px-4 py-2 rounded-xl shadow-xs transition-all"
+                  >
+                    <Upload className="w-3.5 h-3.5 stroke-[2.5]" />
+                    <span>Selecionar Arquivo CSV</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setIsPasteOpen(!isPasteOpen)}
+                    className="flex items-center gap-1.5 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 text-xs font-bold px-3 py-2 rounded-xl shadow-2xs transition-all"
+                  >
+                    <FileText className="w-3.5 h-3.5 text-slate-500" />
+                    <span>{isPasteOpen ? 'Fechar Colar Texto' : 'Ou Colar Texto do Excel'}</span>
+                  </button>
+
+                  {environments.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (confirm('Deseja limpar todos os ambientes carregados?')) {
+                          setEnvironments([]);
+                          setCsvFeedback(null);
+                        }
+                      }}
+                      className="flex items-center gap-1 text-[11px] font-semibold text-slate-500 hover:text-red-600 px-2 py-1 ml-auto"
+                    >
+                      <RotateCcw className="w-3 h-3" />
+                      <span>Limpar lista</span>
+                    </button>
+                  )}
+                </div>
+
+                {/* Direct Paste Area */}
+                {isPasteOpen && (
+                  <div className="mt-3 pt-3 border-t border-blue-200/80 space-y-2 animate-fadeIn">
+                    <label className="block text-[11px] font-bold text-blue-900">
+                      Copie e cole as colunas (Ambiente e Item) de sua planilha aqui:
+                    </label>
+                    <textarea
+                      rows={4}
+                      value={pastedCsvText}
+                      onChange={(e) => setPastedCsvText(e.target.value)}
+                      placeholder={'Ambiente;Item\nHall de Entrada;Porta de Acesso\nHall de Entrada;Interfone\nGaragem;Portão\nGaragem;Extintor...'}
+                      className="w-full bg-white border border-blue-300 rounded-xl p-2.5 text-xs font-mono outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                    <div className="flex justify-end">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          processCsvText(pastedCsvText, 'Texto colado');
+                          setIsPasteOpen(false);
+                          setPastedCsvText('');
+                        }}
+                        disabled={!pastedCsvText.trim()}
+                        className="bg-blue-600 disabled:opacity-50 text-white text-xs font-bold px-3.5 py-1.5 rounded-lg shadow-xs"
+                      >
+                        Processar e Carregar
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {/* CSV Feedback Message */}
+                {csvFeedback && (
+                  <div
+                    className={`mt-3 p-3 rounded-xl text-xs flex items-start gap-2.5 animate-fadeIn ${
+                      csvFeedback.type === 'success'
+                        ? 'bg-emerald-50 text-emerald-900 border border-emerald-200'
+                        : 'bg-red-50 text-red-900 border border-red-200'
+                    }`}
+                  >
+                    {csvFeedback.type === 'success' ? (
+                      <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+                    ) : (
+                      <AlertCircle className="w-4 h-4 text-red-600 shrink-0 mt-0.5" />
+                    )}
+                    <div>
+                      <span className="font-bold">
+                        {csvFeedback.filename ? `${csvFeedback.filename}: ` : ''}
+                      </span>
+                      <span>{csvFeedback.message}</span>
+                      {csvFeedback.type === 'success' && (
+                        <p className="text-[11px] text-emerald-700 mt-1">
+                          Apenas o nome dos itens e ambientes foram definidos. A descrição técnica, observações e fotografias serão preenchidas pelos inspetores durante a vistoria no local.
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                )}
               </div>
 
-              <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100">
+              {/* Environments and Items Preview / Editor */}
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
+                    <Layers className="w-4 h-4 text-blue-600" />
+                    <span>Ambientes e Itens do Modelo ({environments.length} Ambientes &bull; {totalLoadedItems} Itens)</span>
+                  </label>
+                </div>
+
+                {/* Add Environment Manually Input */}
+                <div className="flex items-center gap-2 p-2.5 bg-slate-50 border border-slate-200 rounded-xl">
+                  <input
+                    type="text"
+                    value={newEnvName}
+                    onChange={(e) => setNewEnvName(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        handleAddManualEnvironment();
+                      }
+                    }}
+                    placeholder="Adicionar novo ambiente manualmente (ex: Barrilete, Subsolo, Cobertura...)"
+                    className="flex-1 bg-white border border-slate-200 rounded-lg px-3 py-1.5 text-xs font-medium focus:ring-2 focus:ring-blue-500 outline-none"
+                  />
+                  <button
+                    type="button"
+                    onClick={handleAddManualEnvironment}
+                    className="flex items-center gap-1 bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs px-3 py-1.5 rounded-lg shadow-xs shrink-0"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    <span>Ambiente</span>
+                  </button>
+                </div>
+
+                {/* Environments List in Modal */}
+                {environments.length === 0 ? (
+                  <div className="p-8 text-center border-2 border-dashed border-slate-200 rounded-2xl bg-slate-50/50">
+                    <Layers className="w-8 h-8 text-slate-300 mx-auto mb-2" />
+                    <p className="text-xs font-bold text-slate-700">Nenhum ambiente adicionado ainda</p>
+                    <p className="text-[11px] text-slate-500 mt-0.5">
+                      Carregue um arquivo CSV acima ou adicione ambientes manualmente pelo campo acima.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="space-y-3 max-h-72 overflow-y-auto pr-1">
+                    {environments.map((env, envIdx) => {
+                      const itemInputValue = newItemsByEnv[env.id] || '';
+
+                      return (
+                        <div
+                          key={env.id}
+                          className="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-2xs"
+                        >
+                          {/* Environment header in modal */}
+                          <div className="bg-slate-900 text-white px-3 py-2 text-xs font-bold flex items-center justify-between">
+                            <span className="uppercase tracking-wider">
+                              {envIdx + 1}. {env.name} ({env.items.length} itens)
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveEnvironment(envIdx)}
+                              className="text-slate-400 hover:text-red-400 p-0.5 transition-colors"
+                              title="Remover este ambiente"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+
+                          {/* Items in environment */}
+                          <div className="p-2.5 space-y-2 bg-slate-50/40">
+                            {/* Items chips */}
+                            {env.items.length === 0 ? (
+                              <p className="text-[11px] text-slate-400 italic px-1">
+                                Nenhum item neste ambiente. Adicione abaixo:
+                              </p>
+                            ) : (
+                              <div className="flex flex-wrap gap-1.5">
+                                {env.items.map((it, itemIdx) => (
+                                  <span
+                                    key={it.id}
+                                    className="inline-flex items-center gap-1.5 bg-white border border-slate-200 px-2 py-1 rounded-lg text-[11px] font-semibold text-slate-800 shadow-2xs"
+                                  >
+                                    <span>
+                                      {itemIdx + 1}. {it.name}
+                                    </span>
+                                    <button
+                                      type="button"
+                                      onClick={() => handleRemoveItem(envIdx, itemIdx)}
+                                      className="text-slate-400 hover:text-red-600"
+                                      title="Remover item"
+                                    >
+                                      <X className="w-3 h-3" />
+                                    </button>
+                                  </span>
+                                ))}
+                              </div>
+                            )}
+
+                            {/* Add Item to this environment */}
+                            <div className="flex items-center gap-1.5 pt-1 border-t border-slate-200/60">
+                              <input
+                                type="text"
+                                value={itemInputValue}
+                                onChange={(e) =>
+                                  setNewItemsByEnv((prev) => ({
+                                    ...prev,
+                                    [env.id]: e.target.value,
+                                  }))
+                                }
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Enter') {
+                                    e.preventDefault();
+                                    handleAddManualItem(envIdx);
+                                  }
+                                }}
+                                placeholder={`+ Adicionar item em "${env.name}"...`}
+                                className="flex-1 bg-white border border-slate-200 rounded-lg px-2.5 py-1 text-xs font-medium outline-none focus:ring-1 focus:ring-blue-500"
+                              />
+                              <button
+                                type="button"
+                                onClick={() => handleAddManualItem(envIdx)}
+                                className="bg-blue-600 hover:bg-blue-700 text-white font-bold text-[11px] px-2.5 py-1 rounded-lg shadow-2xs shrink-0"
+                              >
+                                + Item
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+
+              {/* Modal Footer */}
+              <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-100 shrink-0">
                 <button
                   type="button"
                   onClick={() => setIsModalOpen(false)}
-                  className="px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-xl"
+                  disabled={saving}
+                  className="px-4 py-2.5 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-xl transition-colors"
                 >
                   Cancelar
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-2 text-xs font-bold text-white bg-blue-600 hover:bg-blue-500 rounded-xl shadow-sm transition-colors"
+                  disabled={saving || !title.trim() || environments.length === 0}
+                  className="flex items-center gap-2 px-5 py-2.5 text-xs font-bold text-white bg-blue-600 hover:bg-blue-500 disabled:opacity-50 disabled:cursor-not-allowed rounded-xl shadow-sm transition-all active:scale-95"
                 >
-                  Criar Modelo
+                  {saving ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      <span>Salvando Modelo...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Check className="w-4 h-4 stroke-[3]" />
+                      <span>Criar Modelo ({environments.length} Ambientes)</span>
+                    </>
+                  )}
                 </button>
               </div>
             </form>
