@@ -23,7 +23,10 @@ import { useAuth } from '../context/AuthContext';
 import { InspectionTemplate, TemplateEnvironment, TemplateItem } from '../types';
 import {
   parseTemplateCsv,
+  parseTemplateSpreadsheet,
   generateSampleTemplateCsv,
+  generateSampleTemplateXlsx,
+  exportTemplateAsXlsx,
   CsvParseResult,
 } from '../lib/csvTemplateParser';
 
@@ -44,8 +47,10 @@ export const Templates: React.FC<TemplatesProps> = ({ onNavigate }) => {
   const [description, setDescription] = useState('');
   const [environments, setEnvironments] = useState<TemplateEnvironment[]>([]);
 
-  // CSV Import State
+  // Spreadsheet / CSV Import State
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const directFileInputRef = useRef<HTMLInputElement>(null);
+
   const [csvFeedback, setCsvFeedback] = useState<{
     type: 'success' | 'error';
     message: string;
@@ -87,6 +92,22 @@ export const Templates: React.FC<TemplatesProps> = ({ onNavigate }) => {
     setExpandedTmpl(expandedTmpl === id ? null : id);
   };
 
+  // Helper to trigger sample Excel download
+  const handleDownloadSampleXlsx = () => {
+    const bytes = generateSampleTemplateXlsx();
+    const blob = new Blob([bytes as any], {
+      type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.setAttribute('href', url);
+    link.setAttribute('download', 'modelo_vistoria_exemplo_cast.xlsx');
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
   // Helper to trigger sample CSV download
   const handleDownloadSampleCsv = () => {
     const csvContent = generateSampleTemplateCsv();
@@ -95,6 +116,27 @@ export const Templates: React.FC<TemplatesProps> = ({ onNavigate }) => {
     const link = document.createElement('a');
     link.setAttribute('href', url);
     link.setAttribute('download', 'modelo_vistoria_exemplo_cast.csv');
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
+  // Helper to export an existing template as Excel (.xlsx)
+  const handleExportTemplateAsXlsx = (tmpl: InspectionTemplate, e: React.MouseEvent) => {
+    e.stopPropagation();
+    const bytes = exportTemplateAsXlsx(tmpl);
+    const blob = new Blob([bytes as any], {
+      type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.setAttribute('href', url);
+    const cleanTitle = tmpl.title
+      .toLowerCase()
+      .replace(/[^a-z0-9]/gi, '_')
+      .replace(/_+/g, '_');
+    link.setAttribute('download', `modelo_${cleanTitle || 'vistoria'}.xlsx`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -136,37 +178,12 @@ export const Templates: React.FC<TemplatesProps> = ({ onNavigate }) => {
     URL.revokeObjectURL(url);
   };
 
-  // Handle CSV file selection
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      const text = event.target?.result as string;
-      processCsvText(text, file.name);
-    };
-    reader.onerror = () => {
-      setCsvFeedback({
-        type: 'error',
-        message: 'Não foi possível ler o arquivo selecionado.',
-      });
-    };
-    reader.readAsText(file);
-
-    // Reset input so same file can be picked again if desired
-    if (fileInputRef.current) {
-      fileInputRef.current.value = '';
-    }
-  };
-
-  // Process text as CSV
-  const processCsvText = (text: string, filename?: string) => {
-    const parsed: CsvParseResult = parseTemplateCsv(text);
+  // Apply parsed spreadsheet/CSV result
+  const applyParseResult = (parsed: CsvParseResult, filename?: string) => {
     if (!parsed.success) {
       setCsvFeedback({
         type: 'error',
-        message: parsed.error || 'Erro ao processar arquivo CSV.',
+        message: parsed.error || 'Erro ao processar a planilha.',
       });
       return;
     }
@@ -174,17 +191,77 @@ export const Templates: React.FC<TemplatesProps> = ({ onNavigate }) => {
     setEnvironments(parsed.environments);
     setCsvFeedback({
       type: 'success',
-      message: `${parsed.totalEnvironments} ambientes e ${parsed.totalItems} itens carregados com sucesso!`,
+      message: `${parsed.totalEnvironments} ambientes reconhecidos na Coluna 1 e ${parsed.totalItems} itens reconhecidos na Coluna 2!`,
       filename,
     });
 
-    // Suggest title if currently empty
+    // Auto set title if currently empty or generic
     if (!title.trim() && filename) {
       const cleanName = filename
         .replace(/\.[^/.]+$/, '')
         .replace(/[_-]+/g, ' ')
         .replace(/^\w/, (c) => c.toUpperCase());
       setTitle(cleanName);
+    }
+  };
+
+  // Process File Object (Spreadsheet or CSV)
+  const processUploadedFile = (file: File) => {
+    const lowerName = file.name.toLowerCase();
+    const isExcel = lowerName.endsWith('.xlsx') || lowerName.endsWith('.xls');
+
+    if (isExcel) {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const buffer = event.target?.result as ArrayBuffer;
+        if (buffer) {
+          const parsed = parseTemplateSpreadsheet(buffer);
+          applyParseResult(parsed, file.name);
+          setIsModalOpen(true);
+        }
+      };
+      reader.onerror = () => {
+        alert('Não foi possível ler a planilha Excel selecionada.');
+      };
+      reader.readAsArrayBuffer(file);
+    } else {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const text = event.target?.result as string;
+        const parsed = parseTemplateCsv(text);
+        applyParseResult(parsed, file.name);
+        setIsModalOpen(true);
+      };
+      reader.onerror = () => {
+        alert('Não foi possível ler o arquivo selecionado.');
+      };
+      reader.readAsText(file);
+    }
+  };
+
+  // Handle direct upload from header/dropzone
+  const handleDirectSpreadsheetUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    processUploadedFile(file);
+    if (directFileInputRef.current) directFileInputRef.current.value = '';
+  };
+
+  // Handle modal file selection
+  const handleModalFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    processUploadedFile(file);
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  };
+
+  // Handle Drag & Drop of Spreadsheet
+  const handleDropFile = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    if (!canManageUsers) return;
+    const file = e.dataTransfer.files?.[0];
+    if (file) {
+      processUploadedFile(file);
     }
   };
 
@@ -290,7 +367,7 @@ export const Templates: React.FC<TemplatesProps> = ({ onNavigate }) => {
     if (!company || !title.trim()) return;
 
     if (environments.length === 0) {
-      alert('Adicione pelo menos um ambiente ao modelo de vistoria através do CSV ou manualmente.');
+      alert('Adicione pelo menos um ambiente ao modelo de vistoria através da planilha (Excel/CSV) ou manualmente.');
       return;
     }
 
@@ -325,8 +402,10 @@ export const Templates: React.FC<TemplatesProps> = ({ onNavigate }) => {
       });
 
       if (res.ok) {
+        const created: InspectionTemplate = await res.json();
         setIsModalOpen(false);
         fetchTemplates();
+        setExpandedTmpl(created.id);
       } else {
         alert('Erro ao criar modelo.');
       }
@@ -342,6 +421,15 @@ export const Templates: React.FC<TemplatesProps> = ({ onNavigate }) => {
 
   return (
     <div className="space-y-6 pb-16 w-full max-w-full">
+      {/* Hidden input for direct header upload */}
+      <input
+        ref={directFileInputRef}
+        type="file"
+        accept=".xlsx,.xls,.csv,text/csv,text/plain,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel"
+        onChange={handleDirectSpreadsheetUpload}
+        className="hidden"
+      />
+
       {/* Page Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
@@ -350,32 +438,83 @@ export const Templates: React.FC<TemplatesProps> = ({ onNavigate }) => {
             <span>Modelos de Vistoria</span>
           </h1>
           <p className="text-xs text-slate-500 mt-1">
-            Cadastre modelos de checklist predial ou carregue seus ambientes e itens diretamente de planilhas CSV.
+            Reconhecimento automático: <strong>Coluna 1 = Ambientes</strong> e <strong>Coluna 2 = Itens</strong> da sua planilha.
           </p>
         </div>
 
         <div className="flex items-center gap-2 self-start sm:self-auto flex-wrap">
+          {/* Quick Download of Sample Spreadsheet */}
           <button
             type="button"
-            onClick={handleDownloadSampleCsv}
-            className="flex items-center gap-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold px-3.5 py-2.5 rounded-xl transition-all shadow-2xs"
-            title="Baixar planilha de exemplo com ambientes e itens"
+            onClick={handleDownloadSampleXlsx}
+            className="flex items-center gap-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 text-xs font-bold px-3 py-2 rounded-xl transition-all shadow-2xs"
+            title="Baixar planilha Excel (.xlsx) de exemplo"
           >
-            <Download className="w-3.5 h-3.5 text-slate-600" />
-            <span>Baixar Planilha CSV Modelo</span>
+            <Download className="w-3.5 h-3.5 text-emerald-600" />
+            <span>Planilha Exemplo (.xlsx)</span>
           </button>
 
           {canManageUsers && (
-            <button
-              onClick={handleOpenNewModal}
-              className="flex items-center gap-2 bg-blue-600 hover:bg-blue-500 active:scale-95 text-white text-xs sm:text-sm font-bold px-4 py-2.5 rounded-xl shadow-md shadow-blue-600/20 transition-all shrink-0"
-            >
-              <Plus className="w-4 h-4 stroke-[3]" />
-              <span>Novo Modelo</span>
-            </button>
+            <>
+              {/* PRIMARY ACTION: DIRECT SPREADSHEET UPLOAD */}
+              <button
+                type="button"
+                onClick={() => directFileInputRef.current?.click()}
+                className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-500 active:scale-95 text-white text-xs sm:text-sm font-bold px-4 py-2.5 rounded-xl shadow-md shadow-emerald-600/20 transition-all shrink-0"
+                title="Carregar planilha Excel ou CSV para criar o modelo automaticamente"
+              >
+                <FileSpreadsheet className="w-4 h-4 stroke-[2.5]" />
+                <span>Enviar Planilha para Criar Modelo</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={handleOpenNewModal}
+                className="flex items-center gap-2 bg-blue-600 hover:bg-blue-500 active:scale-95 text-white text-xs sm:text-sm font-bold px-4 py-2.5 rounded-xl shadow-md shadow-blue-600/20 transition-all shrink-0"
+              >
+                <Plus className="w-4 h-4 stroke-[3]" />
+                <span>Novo Modelo</span>
+              </button>
+            </>
           )}
         </div>
       </div>
+
+      {/* Prominent Drag & Drop / Upload Card */}
+      {canManageUsers && (
+        <div
+          onDragOver={(e) => e.preventDefault()}
+          onDrop={handleDropFile}
+          onClick={() => directFileInputRef.current?.click()}
+          className="border-2 border-dashed border-emerald-300 hover:border-emerald-500 bg-emerald-50/40 hover:bg-emerald-50/80 transition-all rounded-2xl p-4 sm:p-5 flex flex-col sm:flex-row items-center justify-between gap-4 cursor-pointer group shadow-2xs"
+        >
+          <div className="flex items-center gap-3.5">
+            <div className="w-11 h-11 rounded-xl bg-emerald-600 text-white flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform shadow-xs">
+              <FileSpreadsheet className="w-6 h-6" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2 flex-wrap">
+                <h3 className="text-xs sm:text-sm font-bold text-slate-900">
+                  Enviar Planilha e Criar Modelo de Vistoria
+                </h3>
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-emerald-100 text-emerald-800 border border-emerald-200">
+                  Excel (.xlsx) ou CSV
+                </span>
+              </div>
+              <p className="text-[11px] text-slate-600 mt-0.5">
+                O sistema lê automaticamente os <strong>Ambientes na Coluna 1</strong> e os <strong>Itens na Coluna 2</strong> da planilha.
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2 shrink-0 self-end sm:self-center">
+            <span className="flex items-center gap-1.5 text-xs font-bold text-emerald-800 bg-white border border-emerald-300 group-hover:bg-emerald-600 group-hover:text-white transition-colors px-3.5 py-2 rounded-xl shadow-2xs">
+              <Upload className="w-3.5 h-3.5 stroke-[2.5]" />
+              <span>Clique ou Arraste a Planilha Aqui</span>
+            </span>
+          </div>
+        </div>
+      )}
 
       {/* Templates List */}
       {loading ? (
@@ -390,15 +529,15 @@ export const Templates: React.FC<TemplatesProps> = ({ onNavigate }) => {
           </div>
           <h3 className="text-base font-bold text-slate-800 mb-1">Nenhum modelo cadastrado</h3>
           <p className="text-xs text-slate-500 mb-4">
-            Crie seu primeiro modelo de vistoria carregando uma planilha CSV com seus ambientes e itens, ou monte manualmente.
+            Envie sua planilha Excel ou CSV com os Ambientes na Coluna 1 e os Itens na Coluna 2 para gerar o modelo de vistoria automaticamente.
           </p>
           {canManageUsers && (
             <button
-              onClick={handleOpenNewModal}
-              className="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold px-4 py-2.5 rounded-xl shadow-sm"
+              onClick={() => directFileInputRef.current?.click()}
+              className="inline-flex items-center gap-2 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold px-4 py-2.5 rounded-xl shadow-sm"
             >
-              <Plus className="w-4 h-4 stroke-[3]" />
-              <span>Criar Primeiro Modelo</span>
+              <FileSpreadsheet className="w-4 h-4 stroke-[2.5]" />
+              <span>Enviar Planilha Agora</span>
             </button>
           )}
         </div>
@@ -440,19 +579,31 @@ export const Templates: React.FC<TemplatesProps> = ({ onNavigate }) => {
                     </div>
                   </div>
 
-                  <div className="flex items-center justify-between sm:justify-end gap-2.5 shrink-0 pt-2 sm:pt-0 border-t sm:border-t-0 border-slate-100">
+                  <div className="flex items-center justify-between sm:justify-end gap-2 shrink-0 pt-2 sm:pt-0 border-t sm:border-t-0 border-slate-100 flex-wrap">
                     <span className="text-xs font-semibold bg-slate-100 text-slate-700 px-2.5 py-1 rounded-lg">
                       {totalItems} {totalItems === 1 ? 'Item' : 'Itens'}
                     </span>
+
+                    {/* Export Template to Excel (.xlsx) */}
+                    <button
+                      type="button"
+                      onClick={(e) => handleExportTemplateAsXlsx(tmpl, e)}
+                      className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 px-2.5 py-1 rounded-lg transition-colors"
+                      title="Exportar checklist para planilha Excel (.xlsx)"
+                    >
+                      <Download className="w-3 h-3 text-emerald-600" />
+                      <span>Excel</span>
+                    </button>
 
                     {/* Export Template to CSV */}
                     <button
                       type="button"
                       onClick={(e) => handleExportTemplateAsCsv(tmpl, e)}
-                      className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                      title="Exportar checklist para planilha CSV"
+                      className="inline-flex items-center gap-1 text-[11px] font-bold text-slate-600 bg-slate-50 hover:bg-slate-100 border border-slate-200 px-2 py-1 rounded-lg transition-colors"
+                      title="Exportar checklist para CSV"
                     >
-                      <Download className="w-4 h-4" />
+                      <Download className="w-3 h-3 text-slate-500" />
+                      <span>CSV</span>
                     </button>
 
                     {/* Delete Template */}
@@ -542,7 +693,7 @@ export const Templates: React.FC<TemplatesProps> = ({ onNavigate }) => {
         </div>
       )}
 
-      {/* New Template Modal with CSV Import Support */}
+      {/* Template Modal: Pre-filled from Spreadsheet or Manual */}
       {isModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-900/60 backdrop-blur-xs animate-fadeIn w-full max-w-full overflow-y-auto">
           <div className="bg-white rounded-2xl max-w-2xl w-full p-4 sm:p-6 shadow-2xl my-auto max-h-[92vh] flex flex-col">
@@ -550,7 +701,9 @@ export const Templates: React.FC<TemplatesProps> = ({ onNavigate }) => {
             <div className="flex items-center justify-between pb-3.5 border-b border-slate-100 shrink-0">
               <div className="flex items-center gap-2">
                 <FileCheck2 className="w-5 h-5 text-blue-600" />
-                <h3 className="text-base font-bold text-slate-900">Novo Modelo de Vistoria</h3>
+                <h3 className="text-base font-bold text-slate-900">
+                  {environments.length > 0 ? 'Criar Modelo a partir da Planilha' : 'Novo Modelo de Vistoria'}
+                </h3>
               </div>
               <button
                 onClick={() => setIsModalOpen(false)}
@@ -592,31 +745,44 @@ export const Templates: React.FC<TemplatesProps> = ({ onNavigate }) => {
                 </div>
               </div>
 
-              {/* CSV Upload Section (PROMINENT) */}
-              <div className="bg-blue-50/70 border-2 border-dashed border-blue-200 hover:border-blue-400 transition-colors rounded-2xl p-4 sm:p-5">
+              {/* Spreadsheet Upload Section */}
+              <div className="bg-emerald-50/60 border-2 border-dashed border-emerald-200 hover:border-emerald-400 transition-colors rounded-2xl p-4 sm:p-5">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-3">
                   <div className="flex items-center gap-2.5">
-                    <div className="w-9 h-9 rounded-xl bg-blue-600 text-white flex items-center justify-center shrink-0 shadow-xs">
+                    <div className="w-10 h-10 rounded-xl bg-emerald-600 text-white flex items-center justify-center shrink-0 shadow-xs">
                       <FileSpreadsheet className="w-5 h-5" />
                     </div>
                     <div>
-                      <h4 className="text-xs sm:text-sm font-bold text-blue-950">
-                        Carregar Ambientes e Itens via CSV
+                      <h4 className="text-xs sm:text-sm font-bold text-slate-900">
+                        Carregar Planilha (Coluna 1: Ambientes | Coluna 2: Itens)
                       </h4>
-                      <p className="text-[11px] text-blue-800">
-                        Importe planilhas (.csv / .txt) com as colunas <strong>Ambiente</strong> e <strong>Item</strong>
+                      <p className="text-[11px] text-slate-600">
+                        Importe sua planilha Excel (.xlsx / .xls) ou CSV (.csv)
                       </p>
                     </div>
                   </div>
 
-                  <button
-                    type="button"
-                    onClick={handleDownloadSampleCsv}
-                    className="flex items-center gap-1.5 bg-white border border-blue-200 hover:bg-blue-50 text-blue-700 text-[11px] font-bold px-3 py-1.5 rounded-lg shadow-2xs shrink-0 self-start sm:self-auto"
-                  >
-                    <Download className="w-3.5 h-3.5" />
-                    <span>Baixar CSV Exemplo</span>
-                  </button>
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <button
+                      type="button"
+                      onClick={handleDownloadSampleXlsx}
+                      className="flex items-center gap-1 bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] font-bold px-2.5 py-1.5 rounded-lg shadow-2xs shrink-0"
+                      title="Baixar planilha Excel (.xlsx) de exemplo"
+                    >
+                      <Download className="w-3 h-3" />
+                      <span>Exemplo Excel</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={handleDownloadSampleCsv}
+                      className="flex items-center gap-1 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 text-[11px] font-bold px-2.5 py-1.5 rounded-lg shadow-2xs shrink-0"
+                      title="Baixar modelo em CSV"
+                    >
+                      <Download className="w-3 h-3" />
+                      <span>Exemplo CSV</span>
+                    </button>
+                  </div>
                 </div>
 
                 {/* Upload action buttons */}
@@ -624,18 +790,18 @@ export const Templates: React.FC<TemplatesProps> = ({ onNavigate }) => {
                   <input
                     ref={fileInputRef}
                     type="file"
-                    accept=".csv,text/csv,text/plain"
-                    onChange={handleFileChange}
+                    accept=".xlsx,.xls,.csv,text/csv,text/plain,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel"
+                    onChange={handleModalFileChange}
                     className="hidden"
                   />
 
                   <button
                     type="button"
                     onClick={() => fileInputRef.current?.click()}
-                    className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 active:scale-95 text-white text-xs font-bold px-4 py-2 rounded-xl shadow-xs transition-all"
+                    className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white text-xs font-bold px-4 py-2 rounded-xl shadow-xs transition-all"
                   >
                     <Upload className="w-3.5 h-3.5 stroke-[2.5]" />
-                    <span>Selecionar Arquivo CSV</span>
+                    <span>{environments.length > 0 ? 'Trocar Planilha' : 'Selecionar Planilha (Excel ou CSV)'}</span>
                   </button>
 
                   <button
@@ -644,7 +810,7 @@ export const Templates: React.FC<TemplatesProps> = ({ onNavigate }) => {
                     className="flex items-center gap-1.5 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 text-xs font-bold px-3 py-2 rounded-xl shadow-2xs transition-all"
                   >
                     <FileText className="w-3.5 h-3.5 text-slate-500" />
-                    <span>{isPasteOpen ? 'Fechar Colar Texto' : 'Ou Colar Texto do Excel'}</span>
+                    <span>{isPasteOpen ? 'Fechar Colar Texto' : 'Ou Colar Texto Copiado'}</span>
                   </button>
 
                   {environments.length > 0 && (
@@ -666,27 +832,28 @@ export const Templates: React.FC<TemplatesProps> = ({ onNavigate }) => {
 
                 {/* Direct Paste Area */}
                 {isPasteOpen && (
-                  <div className="mt-3 pt-3 border-t border-blue-200/80 space-y-2 animate-fadeIn">
-                    <label className="block text-[11px] font-bold text-blue-900">
-                      Copie e cole as colunas (Ambiente e Item) de sua planilha aqui:
+                  <div className="mt-3 pt-3 border-t border-emerald-200/80 space-y-2 animate-fadeIn">
+                    <label className="block text-[11px] font-bold text-slate-800">
+                      Copie e cole as colunas (Coluna 1: Ambiente | Coluna 2: Item) de sua planilha:
                     </label>
                     <textarea
                       rows={4}
                       value={pastedCsvText}
                       onChange={(e) => setPastedCsvText(e.target.value)}
                       placeholder={'Ambiente;Item\nHall de Entrada;Porta de Acesso\nHall de Entrada;Interfone\nGaragem;Portão\nGaragem;Extintor...'}
-                      className="w-full bg-white border border-blue-300 rounded-xl p-2.5 text-xs font-mono outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full bg-white border border-emerald-300 rounded-xl p-2.5 text-xs font-mono outline-none focus:ring-2 focus:ring-emerald-500"
                     />
                     <div className="flex justify-end">
                       <button
                         type="button"
                         onClick={() => {
-                          processCsvText(pastedCsvText, 'Texto colado');
+                          const parsed = parseTemplateCsv(pastedCsvText);
+                          applyParseResult(parsed, 'Texto colado');
                           setIsPasteOpen(false);
                           setPastedCsvText('');
                         }}
                         disabled={!pastedCsvText.trim()}
-                        className="bg-blue-600 disabled:opacity-50 text-white text-xs font-bold px-3.5 py-1.5 rounded-lg shadow-xs"
+                        className="bg-emerald-600 disabled:opacity-50 text-white text-xs font-bold px-3.5 py-1.5 rounded-lg shadow-xs"
                       >
                         Processar e Carregar
                       </button>
@@ -694,7 +861,7 @@ export const Templates: React.FC<TemplatesProps> = ({ onNavigate }) => {
                   </div>
                 )}
 
-                {/* CSV Feedback Message */}
+                {/* Spreadsheet Feedback Message */}
                 {csvFeedback && (
                   <div
                     className={`mt-3 p-3 rounded-xl text-xs flex items-start gap-2.5 animate-fadeIn ${
@@ -715,7 +882,7 @@ export const Templates: React.FC<TemplatesProps> = ({ onNavigate }) => {
                       <span>{csvFeedback.message}</span>
                       {csvFeedback.type === 'success' && (
                         <p className="text-[11px] text-emerald-700 mt-1">
-                          Apenas o nome dos itens e ambientes foram definidos. A descrição técnica, observações e fotografias serão preenchidas pelos inspetores durante a vistoria no local.
+                          Reconhecido com sucesso: <strong>Coluna 1 como Ambientes</strong> e <strong>Coluna 2 como Itens</strong>. As descrições técnicas, pareceres e fotos serão preenchidas na vistoria.
                         </p>
                       )}
                     </div>
@@ -727,7 +894,7 @@ export const Templates: React.FC<TemplatesProps> = ({ onNavigate }) => {
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
                   <label className="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
-                    <Layers className="w-4 h-4 text-blue-600" />
+                    <Layers className="w-4 h-4 text-emerald-600" />
                     <span>Ambientes e Itens do Modelo ({environments.length} Ambientes &bull; {totalLoadedItems} Itens)</span>
                   </label>
                 </div>
@@ -763,7 +930,7 @@ export const Templates: React.FC<TemplatesProps> = ({ onNavigate }) => {
                     <Layers className="w-8 h-8 text-slate-300 mx-auto mb-2" />
                     <p className="text-xs font-bold text-slate-700">Nenhum ambiente adicionado ainda</p>
                     <p className="text-[11px] text-slate-500 mt-0.5">
-                      Carregue um arquivo CSV acima ou adicione ambientes manualmente pelo campo acima.
+                      Envie uma planilha (Coluna 1 = Ambientes, Coluna 2 = Itens) ou adicione ambientes manualmente pelo campo acima.
                     </p>
                   </div>
                 ) : (
@@ -844,7 +1011,7 @@ export const Templates: React.FC<TemplatesProps> = ({ onNavigate }) => {
                               <button
                                 type="button"
                                 onClick={() => handleAddManualItem(envIdx)}
-                                className="bg-blue-600 hover:bg-blue-700 text-white font-bold text-[11px] px-2.5 py-1 rounded-lg shadow-2xs shrink-0"
+                                className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[11px] px-2.5 py-1 rounded-lg shadow-2xs shrink-0"
                               >
                                 + Item
                               </button>
@@ -870,17 +1037,17 @@ export const Templates: React.FC<TemplatesProps> = ({ onNavigate }) => {
                 <button
                   type="submit"
                   disabled={saving || !title.trim() || environments.length === 0}
-                  className="flex items-center gap-2 px-5 py-2.5 text-xs font-bold text-white bg-blue-600 hover:bg-blue-500 disabled:opacity-50 disabled:cursor-not-allowed rounded-xl shadow-sm transition-all active:scale-95"
+                  className="flex items-center gap-2 px-5 py-2.5 text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 disabled:cursor-not-allowed rounded-xl shadow-md shadow-emerald-600/20 transition-all active:scale-95"
                 >
                   {saving ? (
                     <>
                       <Loader2 className="w-4 h-4 animate-spin" />
-                      <span>Salvando Modelo...</span>
+                      <span>Criando Modelo de Vistoria...</span>
                     </>
                   ) : (
                     <>
                       <Check className="w-4 h-4 stroke-[3]" />
-                      <span>Criar Modelo ({environments.length} Ambientes)</span>
+                      <span>Criar Modelo de Vistoria ({environments.length} Ambientes)</span>
                     </>
                   )}
                 </button>
